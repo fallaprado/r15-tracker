@@ -1,10 +1,11 @@
-name: Recollir dades R15
+name: R15 Tracker
 
 on:
   workflow_dispatch:
 
   schedule:
-    - cron: "10 22 * * *"
+    # Crear/actualitzar les dades cada 5 minuts
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: write
@@ -25,19 +26,17 @@ jobs:
 
       - name: Instal·lar dependències
         run: |
-          pip install requests
+          pip install requests gtfs-realtime-bindings
 
       - name: Executar collector
         run: |
           python collector/collect.py
 
-      - name: Comprovar fitxer generat
+      - name: Executar dades en temps real
         run: |
-          ls -lah data/
-          echo "Fitxers JSON:"
-          find data -maxdepth 1 -name "*.json"
+          python collector/realtime.py
 
-      - name: Guardar dades al repositori
+      - name: Guardar dades
         run: |
 
           git config user.name "github-actions[bot]"
@@ -46,6 +45,6 @@ jobs:
 
           git add data/
 
-          git diff --cached --quiet || git commit -m "Dades R15 $(date +'%Y-%m-%d')"
+          git diff --cached --quiet || git commit -m "Actualitzar dades R15 $(date +'%Y-%m-%d %H:%M')"
 
           git push
