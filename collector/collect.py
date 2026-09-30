@@ -3,6 +3,7 @@ import zipfile
 import io
 import csv
 from collections import defaultdict
+print("=== VERSIÓ NOVA DEL COLLECTOR ===")
 
 GTFS_API = "https://data.renfe.com/api/3/action/package_show?id=horarios-cercanias"
 
