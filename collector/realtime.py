@@ -1,4 +1,3 @@
-```python
 import requests
 import json
 import os
@@ -628,4 +627,4 @@ print(
 print("==========================================")
 print("FI REALTIME")
 print("==========================================")
-```
+
