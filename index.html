@@ -1,104 +1,72 @@
-
 <!DOCTYPE html>
 <html lang="ca">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>R15 Tracker</title>
 
-    <link
-        rel="stylesheet"
-        href="style.css"
-    >
-
+    <link rel="stylesheet" href="style.css">
 </head>
-
 
 <body>
 
+    <header>
+        <h1>🚆 R15 Tracker</h1>
+        <p>Històric de circulacions Barcelona ↔ Reus</p>
+    </header>
 
-<header>
+    <main>
 
-    <h1>🚆 R15 Tracker</h1>
+        <section class="controls">
 
-    <p>
-        Històric de circulacions
-        Barcelona ↔ Reus
-    </p>
+            <div class="control">
+                <label for="direction">
+                    Sentit
+                </label>
 
-</header>
+                <select id="direction">
+                    <option value="BAR_REUS">
+                        Barcelona → Reus
+                    </option>
 
-
-<main>
-
-
-    <section class="controls">
-
-
-        <div>
-
-            <label for="direction">
-                Sentit
-            </label>
-
-            <select id="direction">
-
-                <option value="BAR_REUS">
-                    Barcelona → Reus
-                </option>
-
-                <option value="REUS_BAR">
-                    Reus → Barcelona
-                </option>
-
-            </select>
-
-        </div>
+                    <option value="REUS_BAR">
+                        Reus → Barcelona
+                    </option>
+                </select>
+            </div>
 
 
-        <div>
+            <div class="control">
+                <label for="date">
+                    Dia
+                </label>
 
-            <label for="date">
-                Dia
-            </label>
+                <input
+                    type="date"
+                    id="date"
+                >
+            </div>
 
-            <input
-                type="date"
-                id="date"
-            >
-
-        </div>
-
-
-    </section>
+        </section>
 
 
-    <section id="summary"></section>
+        <section id="summary">
+        </section>
 
 
-    <section id="trains">
+        <section id="trains">
 
-        <p class="loading">
-            Carregant...
-        </p>
+            <p class="loading">
+                Carregant dades...
+            </p>
 
-    </section>
+        </section>
+
+    </main>
 
 
-</main>
-
-
-<script src="app.js"></script>
-
+    <script src="app.js"></script>
 
 </body>
-
 </html>
-
