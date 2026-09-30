@@ -1,9 +1,16 @@
+"use strict";
+
 let currentData = null;
 
 const directionSelect = document.getElementById("direction");
 const dateInput = document.getElementById("date");
 const summary = document.getElementById("summary");
 const trainsContainer = document.getElementById("trains");
+
+
+/* =========================================================
+   DATA
+   ========================================================= */
 
 function getTodayLocal() {
     const now = new Date();
@@ -15,31 +22,40 @@ function getTodayLocal() {
     return year + "-" + month + "-" + day;
 }
 
+
 function minutesToTime(minutes) {
     if (minutes === null || minutes === undefined) {
         return "--:--";
     }
 
-    let total = Number(minutes);
+    const value = Number(minutes);
 
-    if (Number.isNaN(total)) {
+    if (Number.isNaN(value)) {
         return "--:--";
     }
 
-    total = total % (24 * 60);
+    let total = value % 1440;
 
     if (total < 0) {
-        total += 24 * 60;
+        total += 1440;
     }
 
     const hours = Math.floor(total / 60);
     const mins = total % 60;
 
-    return String(hours).padStart(2, "0") + ":" +
-           String(mins).padStart(2, "0");
+    return (
+        String(hours).padStart(2, "0") +
+        ":" +
+        String(mins).padStart(2, "0")
+    );
 }
 
+
 function formatDate(dateString) {
+    if (!dateString) {
+        return "";
+    }
+
     const parts = dateString.split("-");
 
     if (parts.length !== 3) {
@@ -49,18 +65,26 @@ function formatDate(dateString) {
     return parts[2] + "/" + parts[1] + "/" + parts[0];
 }
 
+
+/* =========================================================
+   ESTAT DEL TREN
+   ========================================================= */
+
 function getTrainStatus(train) {
+    if (!train.departure || !train.arrival) {
+        return "pending";
+    }
+
     const now = new Date();
 
-    const departure = train.departure
-        ? new Date(train.departure)
-        : null;
+    const departure = new Date(train.departure);
+    const arrival = new Date(train.arrival);
 
-    const arrival = train.arrival
-        ? new Date(train.arrival)
-        : null;
+    if (Number.isNaN(departure.getTime())) {
+        return "pending";
+    }
 
-    if (!departure || !arrival) {
+    if (Number.isNaN(arrival.getTime())) {
         return "pending";
     }
 
@@ -75,6 +99,24 @@ function getTrainStatus(train) {
     return "finished";
 }
 
+
+function getStatusText(status) {
+    if (status === "pending") {
+        return "Pendent";
+    }
+
+    if (status === "running") {
+        return "En circulació";
+    }
+
+    return "Finalitzat";
+}
+
+
+/* =========================================================
+   CARREGAR JSON
+   ========================================================= */
+
 async function loadData() {
     const selectedDate = dateInput.value;
 
@@ -86,252 +128,496 @@ async function loadData() {
         '<p class="loading">Carregant dades...</p>';
 
     try {
-        const response = await fetch(
-            "data/" + selectedDate + ".json?t=" + Date.now()
-        );
+        const url =
+            "data/" +
+            selectedDate +
+            ".json?t=" +
+            Date.now();
+
+        const response = await fetch(url);
 
         if (!response.ok) {
             throw new Error(
-                "No s'ha trobat el fitxer de dades: " +
-                selectedDate
+                "No existeix el fitxer " +
+                selectedDate +
+                ".json"
             );
         }
 
-        currentData = await response.json();
+        const data = await response.json();
+
+        currentData = data;
 
         render();
 
     } catch (error) {
-        console.error(error);
+        console.error("Error carregant dades:", error);
+
+        currentData = null;
 
         summary.innerHTML = "";
 
         trainsContainer.innerHTML =
-            '<p class="empty">No hi ha dades disponibles per a aquest dia.</p>';
+            '<div class="empty">' +
+            "<strong>No hi ha dades disponibles.</strong>" +
+            "<br><br>" +
+            "No s'ha trobat el fitxer del dia " +
+            formatDate(selectedDate) +
+            "." +
+            "</div>";
     }
 }
+
+
+/* =========================================================
+   PINTAR TRENS
+   ========================================================= */
 
 function render() {
     if (!currentData) {
         return;
     }
 
-    const selectedDirection = directionSelect.value;
+    const selectedDirection =
+        directionSelect.value;
 
-    const trains = currentData.trains.filter(function(train) {
-        return train.direction === selectedDirection;
-    });
+    const allTrains =
+        currentData.trains || [];
 
-    trainsContainer.innerHTML = "";
-
-    const dateText = formatDate(currentData.date);
+    const trains =
+        allTrains.filter(function(train) {
+            return train.direction === selectedDirection;
+        });
 
     summary.innerHTML =
         "<strong>" +
-        dateText +
-        "</strong> · " +
+        formatDate(currentData.date) +
+        "</strong>" +
+        " · " +
         trains.length +
         " circulacions";
 
+    trainsContainer.innerHTML = "";
+
     if (trains.length === 0) {
         trainsContainer.innerHTML =
-            '<p class="empty">No hi ha circulacions per a aquest sentit.</p>';
+            '<div class="empty">' +
+            "No hi ha circulacions per a aquest sentit." +
+            "</div>";
 
         return;
     }
 
     trains.forEach(function(train) {
         const element = createTrain(train);
+
         trainsContainer.appendChild(element);
     });
 }
 
+
+/* =========================================================
+   CREAR UN TREN
+   ========================================================= */
+
 function createTrain(train) {
-    const article = document.createElement("article");
+    const article =
+        document.createElement("article");
 
-    const status = getTrainStatus(train);
+    const status =
+        getTrainStatus(train);
 
-    article.className = "train " + status;
+    article.className =
+        "train " + status;
 
-    const firstStop =
-        train.stops && train.stops.length > 0
-            ? train.stops[0]
-            : null;
 
-    const lastStop =
-        train.stops && train.stops.length > 0
-            ? train.stops[train.stops.length - 1]
-            : null;
-
-    const departureTime = firstStop
-        ? minutesToTime(
-            firstStop.scheduled_departure ??
-            firstStop.scheduled_arrival
-        )
-        : "--:--";
-
-    const arrivalTime = lastStop
-        ? minutesToTime(
-            lastStop.scheduled_arrival ??
-            lastStop.scheduled_departure
-        )
-        : "--:--";
-
-    let statusText = "";
-
-    if (status === "pending") {
-        statusText = "Pendent";
-    }
-
-    if (status === "running") {
-        statusText =
-            '<span class="live-dot"></span> En circulació';
-    }
-
-    if (status === "finished") {
-        statusText = "Finalitzat";
-    }
-
-    const trainHeader = document.createElement("div");
-
-    trainHeader.className = "train-header";
-
-    trainHeader.innerHTML =
-        '<div class="train-number">' +
-        '<strong>R15</strong>' +
-        '<span>' +
-        escapeHtml(train.train_id) +
-        "</span>" +
-        "</div>" +
-
-        '<div class="train-route">' +
-        '<span>' +
-        departureTime +
-        "</span>" +
-        '<span class="arrow">→</span>' +
-        '<span>' +
-        arrivalTime +
-        "</span>" +
-        "</div>" +
-
-        '<div class="train-status">' +
-        statusText +
-        "</div>";
-
-    article.appendChild(trainHeader);
-
-    const stopsContainer = createStops(train);
-
-    article.appendChild(stopsContainer);
-
-    trainHeader.addEventListener("click", function() {
-        article.classList.toggle("expanded");
-    });
-
-    return article;
-}
-
-function createStops(train) {
-    const container = document.createElement("div");
-
-    container.className = "stops";
+    /* ---------- PRIMERA I ÚLTIMA PARADA ---------- */
 
     const stops = train.stops || [];
 
-    stops.forEach(function(stop) {
-        const row = document.createElement("div");
+    let firstStop = null;
+    let lastStop = null;
 
-        row.className = "stop";
+    if (stops.length > 0) {
+        firstStop = stops[0];
+        lastStop = stops[stops.length - 1];
+    }
 
-        const scheduled = stop.scheduled_arrival ??
-                          stop.scheduled_departure;
 
-        const actual = stop.actual_minutes;
+    /* ---------- HORES ---------- */
 
-        let actualHtml = "";
+    let departureTime = "--:--";
+    let arrivalTime = "--:--";
 
-        if (actual !== null && actual !== undefined) {
-            actualHtml =
-                '<span class="actual">' +
-                minutesToTime(actual) +
-                "</span>";
-        } else {
-            actualHtml =
-                '<span class="actual pending-time">--:--</span>';
-        }
+    if (firstStop) {
+        departureTime =
+            minutesToTime(
+                firstStop.scheduled_departure ??
+                firstStop.scheduled_arrival
+            );
+    }
 
-        let delayHtml = "";
+    if (lastStop) {
+        arrivalTime =
+            minutesToTime(
+                lastStop.scheduled_arrival ??
+                lastStop.scheduled_departure
+            );
+    }
+
+
+    /* ---------- RETARD FINAL ---------- */
+
+    const finalDelay =
+        Number(train.final_delay_minutes || 0);
+
+
+    /* ---------- HEADER ---------- */
+
+    const header =
+        document.createElement("div");
+
+    header.className = "train-header";
+
+
+    /* ---------- NÚMERO ---------- */
+
+    const number =
+        document.createElement("div");
+
+    number.className =
+        "train-number";
+
+    const numberStrong =
+        document.createElement("strong");
+
+    numberStrong.textContent =
+        "R15";
+
+    const trainId =
+        document.createElement("span");
+
+    trainId.textContent =
+        train.train_id || "";
+
+    number.appendChild(numberStrong);
+    number.appendChild(trainId);
+
+
+    /* ---------- RUTA ---------- */
+
+    const route =
+        document.createElement("div");
+
+    route.className =
+        "train-route";
+
+    const departure =
+        document.createElement("span");
+
+    departure.textContent =
+        departureTime;
+
+    const arrow =
+        document.createElement("span");
+
+    arrow.className = "arrow";
+    arrow.textContent = "→";
+
+    const arrival =
+        document.createElement("span");
+
+    arrival.textContent =
+        arrivalTime;
+
+    route.appendChild(departure);
+    route.appendChild(arrow);
+    route.appendChild(arrival);
+
+
+    /* ---------- ESTAT ---------- */
+
+    const statusElement =
+        document.createElement("div");
+
+    statusElement.className =
+        "train-status";
+
+    if (status === "running") {
+
+        const dot =
+            document.createElement("span");
+
+        dot.className =
+            "live-dot";
+
+        statusElement.appendChild(dot);
+
+    }
+
+    const statusText =
+        document.createElement("span");
+
+    statusText.textContent =
+        getStatusText(status);
+
+    statusElement.appendChild(statusText);
+
+
+    /* ---------- RETARD ---------- */
+
+    if (finalDelay > 0) {
+
+        const delay =
+            document.createElement("div");
+
+        delay.className =
+            "delay";
+
+        delay.textContent =
+            "+" +
+            finalDelay +
+            " min";
+
+        statusElement.appendChild(delay);
+    }
+
+
+    /* ---------- MUNTAR HEADER ---------- */
+
+    header.appendChild(number);
+    header.appendChild(route);
+    header.appendChild(statusElement);
+
+    article.appendChild(header);
+
+
+    /* =====================================================
+       PARADES
+       ===================================================== */
+
+    const stopsContainer =
+        document.createElement("div");
+
+    stopsContainer.className =
+        "stops";
+
+
+    stops.forEach(function(stop, index) {
+
+        const row =
+            document.createElement("div");
+
+        row.className =
+            "stop";
+
+
+        /* ---------- ESTACIÓ ---------- */
+
+        const station =
+            document.createElement("div");
+
+        station.className =
+            "stop-station";
+
+        station.textContent =
+            stop.station || "";
+
+
+        /* ---------- HORES ---------- */
+
+        const times =
+            document.createElement("div");
+
+        times.className =
+            "stop-times";
+
+
+        /* PREVISTA */
+
+        const scheduled =
+            document.createElement("span");
+
+        scheduled.className =
+            "scheduled";
+
+        scheduled.textContent =
+            minutesToTime(
+                stop.scheduled_arrival ??
+                stop.scheduled_departure
+            );
+
+
+        /* REAL */
+
+        const actual =
+            document.createElement("span");
+
+        actual.className =
+            "actual";
+
 
         if (
-            stop.delay_minutes !== null &&
-            stop.delay_minutes !== undefined &&
-            Number(stop.delay_minutes) !== 0
+            stop.actual_minutes !== null &&
+            stop.actual_minutes !== undefined
         ) {
-            const delay = Number(stop.delay_minutes);
 
-            const sign = delay > 0 ? "+" : "";
+            actual.textContent =
+                minutesToTime(
+                    stop.actual_minutes
+                );
 
-            delayHtml =
-                '<span class="delay">' +
-                sign +
-                delay +
-                " min</span>";
+        } else {
+
+            actual.textContent =
+                "--:--";
+
+            actual.classList.add(
+                "pending-time"
+            );
         }
 
-        row.innerHTML =
-            '<div class="stop-station">' +
-            escapeHtml(stop.station || "") +
-            "</div>" +
 
-            '<div class="stop-times">' +
-            '<span class="scheduled">' +
-            minutesToTime(scheduled) +
-            "</span>" +
+        /* RETARD */
 
-            actualHtml +
+        const stopDelay =
+            Number(
+                stop.delay_minutes || 0
+            );
 
-            delayHtml +
-            "</div>";
 
-        container.appendChild(row);
+        let delayElement = null;
+
+
+        if (stopDelay !== 0) {
+
+            delayElement =
+                document.createElement("span");
+
+            delayElement.className =
+                "delay";
+
+            if (stopDelay > 0) {
+
+                delayElement.textContent =
+                    "+" +
+                    stopDelay +
+                    " min";
+
+            } else {
+
+                delayElement.textContent =
+                    stopDelay +
+                    " min";
+            }
+        }
+
+
+        times.appendChild(scheduled);
+        times.appendChild(actual);
+
+        if (delayElement) {
+            times.appendChild(delayElement);
+        }
+
+
+        row.appendChild(station);
+        row.appendChild(times);
+
+        stopsContainer.appendChild(row);
     });
 
-    const finalDelay = Number(train.final_delay_minutes || 0);
+
+    /* =====================================================
+       DEVOLUCIÓ
+       ===================================================== */
 
     if (finalDelay > 15) {
-        const refund = document.createElement("div");
 
-        refund.className = "refund-message";
+        const refund =
+            document.createElement("div");
+
+        refund.className =
+            "refund-message";
 
         refund.textContent =
             "Sí es pot sol·licitar devolució express";
 
-        container.appendChild(refund);
+        stopsContainer.appendChild(
+            refund
+        );
     }
 
-    return container;
+
+    article.appendChild(
+        stopsContainer
+    );
+
+
+    /* =====================================================
+       CLIC DEL TREN
+       ===================================================== */
+
+    header.onclick = function() {
+
+        const isOpen =
+            article.classList.contains(
+                "expanded"
+            );
+
+
+        if (isOpen) {
+
+            article.classList.remove(
+                "expanded"
+            );
+
+        } else {
+
+            article.classList.add(
+                "expanded"
+            );
+        }
+    };
+
+
+    return article;
 }
 
-function escapeHtml(text) {
-    const div = document.createElement("div");
 
-    div.textContent = text;
+/* =========================================================
+   EVENTS
+   ========================================================= */
 
-    return div.innerHTML;
-}
+directionSelect.onchange =
+    function() {
+        render();
+    };
 
-directionSelect.addEventListener("change", function() {
-    render();
-});
 
-dateInput.addEventListener("change", function() {
-    loadData();
-});
+dateInput.onchange =
+    function() {
+        loadData();
+    };
 
-dateInput.value = getTodayLocal();
+
+/* =========================================================
+   INICI
+   ========================================================= */
+
+dateInput.value =
+    getTodayLocal();
 
 loadData();
 
-setInterval(function() {
-    loadData();
-}, 60000);
+
+/* =========================================================
+   ACTUALITZAR CADA MINUT
+   ========================================================= */
+
+setInterval(
+    function() {
+        loadData();
+    },
+    60000
+);
