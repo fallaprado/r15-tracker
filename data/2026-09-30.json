@@ -3163,5 +3163,7 @@
         }
       ]
     }
-  ]
+  ],
+  "realtime_updated_at": "2026-09-30T22:41:06.643574+00:00",
+  "realtime_source": "https://gtfsrt.renfe.com/trip_updates.json"
 }
