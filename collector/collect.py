@@ -2,9 +2,8 @@ import requests
 import zipfile
 import io
 import csv
-from collections import defaultdict
 
-print("=== ANALITZANT CIRCULACIONS R15 ===")
+print("=== DIAGNÒSTIC R15 ===")
 
 GTFS_API = "https://data.renfe.com/api/3/action/package_show?id=horarios-cercanias"
 
@@ -20,8 +19,9 @@ def descarregar_gtfs():
 
         if recurs.get("format", "").upper() == "GTFS":
 
-            print("Descarregant GTFS oficial...")
-            
+            print("GTFS oficial:")
+            print(recurs["url"])
+
             resposta = requests.get(recurs["url"])
             resposta.raise_for_status()
 
@@ -50,31 +50,11 @@ def main():
 
     gtfs = descarregar_gtfs()
 
-    print("Llegint dades...")
-
     routes = llegir(gtfs, "routes.txt")
     trips = llegir(gtfs, "trips.txt")
-    stop_times = llegir(gtfs, "stop_times.txt")
-    stops = llegir(gtfs, "stops.txt")
 
-    # -----------------------------------------
-    # ESTACIONS
-    # -----------------------------------------
-
-    stop_names = {}
-
-    for stop in stops:
-
-        stop_names[
-            stop["stop_id"]
-        ] = stop.get(
-            "stop_name",
-            ""
-        ).strip()
-
-    # -----------------------------------------
-    # ROUTES R15
-    # -----------------------------------------
+    print()
+    print("=== ROUTES R15 ===")
 
     r15_routes = set()
 
@@ -85,186 +65,114 @@ def main():
             ""
         ).strip() == "R15":
 
-            r15_routes.add(
-                route["route_id"]
+            route_id = route["route_id"].strip()
+
+            r15_routes.add(route_id)
+
+            print(
+                repr(route_id),
+                "->",
+                route.get(
+                    "route_long_name",
+                    ""
+                ).strip()
             )
 
     print()
     print(
-        "Routes R15:",
+        "Total routes R15:",
         len(r15_routes)
     )
 
-    # -----------------------------------------
-    # TRIPS R15
-    # -----------------------------------------
+    print()
+    print("=== ROUTE_ID DELS TRIPS QUE CONTENEN R15 ===")
 
-    r15_trips = []
+    route_ids_trips = set()
 
     for trip in trips:
 
-        if trip.get(
-            "route_id"
-        ) in r15_routes:
+        route_id = trip.get(
+            "route_id",
+            ""
+        ).strip()
 
-            r15_trips.append(trip)
+        if "R15" in route_id:
 
-    print(
-        "Trips R15:",
-        len(r15_trips)
-    )
-
-    # -----------------------------------------
-    # STOP TIMES
-    # -----------------------------------------
-
-    r15_trip_ids = {
-        trip["trip_id"]
-        for trip in r15_trips
-    }
-
-    parades = defaultdict(list)
-
-    for stop_time in stop_times:
-
-        trip_id = stop_time["trip_id"]
-
-        if trip_id not in r15_trip_ids:
-            continue
-
-        stop_id = stop_time["stop_id"]
-
-        nom = stop_names.get(
-            stop_id,
-            stop_id
-        )
-
-        parades[trip_id].append({
-
-            "sequence": int(
-                stop_time[
-                    "stop_sequence"
-                ]
-            ),
-
-            "station": nom,
-
-            "arrival": stop_time.get(
-                "arrival_time",
-                ""
-            ),
-
-            "departure": stop_time.get(
-                "departure_time",
-                ""
+            route_ids_trips.add(
+                route_id
             )
-        })
 
-    # -----------------------------------------
-    # ORDENAR PARADES
-    # -----------------------------------------
+    for route_id in sorted(
+        route_ids_trips
+    ):
 
-    for trip_id in parades:
-
-        parades[trip_id].sort(
-            key=lambda x:
-                x["sequence"]
+        print(
+            repr(route_id)
         )
-
-    # -----------------------------------------
-    # BUSCAR REUS
-    # -----------------------------------------
 
     print()
     print(
-        "======================================"
-    )
-    print(
-        "CIRCULACIONS R15 QUE PASSEN PER REUS"
-    )
-    print(
-        "======================================"
+        "Total route_id R15 utilitzats pels trips:",
+        len(route_ids_trips)
     )
 
-    total = 0
+    print()
+    print("=== INTERSECCIÓ ===")
 
-    for trip in r15_trips:
+    interseccio = (
+        r15_routes
+        &
+        route_ids_trips
+    )
 
-        trip_id = trip["trip_id"]
+    for route_id in sorted(
+        interseccio
+    ):
 
-        stops_trip = parades.get(
-            trip_id,
-            []
+        print(
+            "COINCIDEIX:",
+            repr(route_id)
         )
 
-        if not stops_trip:
-            continue
+    print()
+    print(
+        "Total coincidències:",
+        len(interseccio)
+    )
 
-        reus_index = None
+    print()
+    print("=== PRIMERS TRIPS R15 ===")
 
-        for i, parada in enumerate(
-            stops_trip
-        ):
+    contador = 0
 
-            if "REUS" in parada[
-                "station"
-            ].upper():
+    for trip in trips:
 
-                reus_index = i
+        route_id = trip.get(
+            "route_id",
+            ""
+        ).strip()
+
+        if "R15" in route_id:
+
+            print(
+                "trip_id:",
+                trip.get("trip_id"),
+                "| route_id:",
+                repr(route_id),
+                "| service_id:",
+                trip.get("service_id"),
+                "| direction_id:",
+                trip.get("direction_id")
+            )
+
+            contador += 1
+
+            if contador >= 20:
                 break
 
-        if reus_index is None:
-            continue
-
-        total += 1
-
-        primera = stops_trip[0]
-        ultima = stops_trip[-1]
-        reus = stops_trip[reus_index]
-
-        print()
-        print(
-            f"TRIP: {trip_id}"
-        )
-
-        print(
-            f"ROUTE: {trip['route_id']}"
-        )
-
-        print(
-            f"SERVICE: "
-            f"{trip.get('service_id', '')}"
-        )
-
-        print(
-            f"ORIGEN: "
-            f"{primera['station']} "
-            f"{primera['departure']}"
-        )
-
-        print(
-            f"REUS: "
-            f"{reus['arrival']} → "
-            f"{reus['departure']}"
-        )
-
-        print(
-            f"DESTÍ: "
-            f"{ultima['station']} "
-            f"{ultima['arrival']}"
-        )
-
     print()
-    print(
-        "======================================"
-    )
-
-    print(
-        "TOTAL CIRCULACIONS R15 PER REUS:",
-        total
-    )
+    print("Fi del diagnòstic.")
 
 
 if __name__ == "__main__":
-
     main()
