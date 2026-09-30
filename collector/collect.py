@@ -46,7 +46,7 @@ def llegir(zip_gtfs, nom):
             )
         )
 
-        # Eliminem espais sobrants dels noms de les columnes
+        # Renfe té alguns camps amb espais al final
         lector.fieldnames = [
             camp.strip()
             for camp in lector.fieldnames
@@ -58,11 +58,11 @@ def llegir(zip_gtfs, nom):
 def servei_actiu(service, data):
 
     inici = date.fromisoformat(
-        service["start_date"]
+        service["start_date"].strip()
     )
 
     final = date.fromisoformat(
-        service["end_date"]
+        service["end_date"].strip()
     )
 
     if not (
@@ -82,10 +82,17 @@ def servei_actiu(service, data):
 
     dia = dies[data.weekday()]
 
-    return service.get(dia) == "1"
+    return service.get(
+        dia,
+        ""
+    ).strip() == "1"
 
 
 def main():
+
+    # =========================================
+    # DESCARREGAR GTFS
+    # =========================================
 
     gtfs = descarregar_gtfs()
 
@@ -116,9 +123,9 @@ def main():
         "calendar.txt"
     )
 
-    # -----------------------------------------
+    # =========================================
     # ESTACIONS
-    # -----------------------------------------
+    # =========================================
 
     stop_names = {}
 
@@ -131,9 +138,9 @@ def main():
             ""
         ).strip()
 
-    # -----------------------------------------
+    # =========================================
     # RUTES R15
-    # -----------------------------------------
+    # =========================================
 
     r15_routes = set()
 
@@ -154,9 +161,9 @@ def main():
         len(r15_routes)
     )
 
-    # -----------------------------------------
-    # SERVEIS ACTIUS
-    # -----------------------------------------
+    # =========================================
+    # SERVEIS ACTIUS EL 1/10/2026
+    # =========================================
 
     serveis_actius = set()
 
@@ -183,9 +190,9 @@ def main():
         sorted(serveis_actius)
     )
 
-    # -----------------------------------------
+    # =========================================
     # TRIPS R15 DEL DIA
-    # -----------------------------------------
+    # =========================================
 
     r15_trips = []
 
@@ -219,9 +226,9 @@ def main():
         len(r15_trips)
     )
 
-    # -----------------------------------------
-    # STOP TIMES
-    # -----------------------------------------
+    # =========================================
+    # BUSCAR PARADES DELS TRIPS
+    # =========================================
 
     r15_trip_ids = {
         trip["trip_id"]
@@ -259,17 +266,17 @@ def main():
             "arrival": stop_time.get(
                 "arrival_time",
                 ""
-            ),
+            ).strip(),
 
             "departure": stop_time.get(
                 "departure_time",
                 ""
-            )
+            ).strip()
         })
 
-    # -----------------------------------------
+    # =========================================
     # ORDENAR PARADES
-    # -----------------------------------------
+    # =========================================
 
     for trip_id in parades:
 
@@ -278,17 +285,19 @@ def main():
                 x["sequence"]
         )
 
-    # -----------------------------------------
-    # CIRCULACIONS QUE PASSEN PER REUS
-    # -----------------------------------------
+    # =========================================
+    # MOSTRAR CIRCULACIONS QUE PASSEN PER REUS
+    # =========================================
 
     print()
     print(
         "=========================================="
     )
+
     print(
         "CIRCULACIONS R15 QUE PASSEN PER REUS"
     )
+
     print(
         "=========================================="
     )
@@ -306,6 +315,10 @@ def main():
 
         if not stops_trip:
             continue
+
+        # -------------------------------------
+        # Buscar Reus
+        # -------------------------------------
 
         reus_index = None
 
@@ -326,7 +339,9 @@ def main():
         total_reus += 1
 
         print()
-        print("------------------------------------------")
+        print(
+            "------------------------------------------"
+        )
 
         print(
             "TRIP:",
@@ -335,12 +350,18 @@ def main():
 
         print(
             "ROUTE:",
-            trip.get("route_id")
+            trip.get(
+                "route_id",
+                ""
+            )
         )
 
         print(
             "SERVICE:",
-            trip.get("service_id")
+            trip.get(
+                "service_id",
+                ""
+            )
         )
 
         print(
@@ -377,6 +398,10 @@ def main():
                 parada["departure"]
             )
 
+    # =========================================
+    # RESUM FINAL
+    # =========================================
+
     print()
     print(
         "=========================================="
@@ -398,4 +423,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
