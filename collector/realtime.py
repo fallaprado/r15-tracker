@@ -3,6 +3,8 @@ import json
 import os
 from datetime import datetime, date
 
+from google.transit import gtfs_realtime_pb2
+
 
 # ============================================================
 # CONFIGURACIÓ
@@ -11,11 +13,6 @@ from datetime import datetime, date
 GTFS_RT_URL = "https://gtfsrt.renfe.com/trip_updates.json"
 
 DATA_DIR = "data"
-
-
-# ============================================================
-# DATA ACTUAL
-# ============================================================
 
 avui = date.today()
 
@@ -32,7 +29,7 @@ print("==========================================")
 
 
 # ============================================================
-# COMPROVAR JSON DIARI
+# COMPROVAR JSON DEL DIA
 # ============================================================
 
 if not os.path.exists(fitxer):
@@ -62,7 +59,7 @@ with open(
 # ============================================================
 
 print(
-    "Descarregant dades en temps real..."
+    "Descarregant GTFS-RT de Renfe..."
 )
 
 
@@ -71,36 +68,19 @@ response = requests.get(
     timeout=30
 )
 
-
 response.raise_for_status()
 
 
 print(
-    "GTFS-RT descarregat."
+    "Feed descarregat:",
+    len(response.content),
+    "bytes"
 )
 
 
 # ============================================================
-# COMPROVAR CONTINGUT
+# PARSEJAR PROTOBUF
 # ============================================================
-
-print()
-print(
-    "Analitzant trips..."
-)
-
-
-# El feed és GTFS-RT protobuf.
-#
-# Per llegir-lo necessitem:
-#
-#   gtfs-realtime-bindings
-#
-# Aquest script assumeix que està instal·lat.
-
-
-from google.transit import gtfs_realtime_pb2
-
 
 feed = gtfs_realtime_pb2.FeedMessage()
 
@@ -110,13 +90,13 @@ feed.ParseFromString(
 
 
 print(
-    "Entitats:",
+    "Entitats del feed:",
     len(feed.entity)
 )
 
 
 # ============================================================
-# INDEXAR TRIPS REALS
+# INDEXAR TRIPS EN TEMPS REAL
 # ============================================================
 
 realtime_trips = {}
@@ -127,33 +107,23 @@ for entity in feed.entity:
     if not entity.HasField(
         "trip_update"
     ):
-
         continue
 
-
-    trip_update = entity.trip_update
-
+    trip_update = (
+        entity.trip_update
+    )
 
     if not trip_update.HasField(
         "trip"
     ):
-
         continue
-
 
     trip_id = (
-        trip_update.trip.trip_id
+        trip_update.trip.trip_id.strip()
     )
 
-
     if not trip_id:
-
         continue
-
-
-    # Guardem tota la informació
-    # del trip.
-
 
     realtime_trips[
         trip_id
@@ -167,17 +137,25 @@ print(
 
 
 # ============================================================
-# ACTUALITZAR ELS NOSTRES R15
+# ACTUALITZAR NOMÉS ELS R15
 # ============================================================
 
 actualitzats = 0
 
+parades_actualitzades = 0
 
-for train in dades["trains"]:
 
+for train in dades.get(
+    "trains",
+    []
+):
 
-    trip_id = train["train_id"]
-
+    trip_id = (
+        train.get(
+            "train_id",
+            ""
+        ).strip()
+    )
 
     if trip_id not in realtime_trips:
 
@@ -202,23 +180,24 @@ for train in dades["trains"]:
         trip_update.stop_time_update
     ):
 
-
         stop_id = (
-            stop_update.stop_id
+            stop_update.stop_id.strip()
         )
 
 
-        # Buscar la parada corresponent
-        # al nostre JSON.
+        # Buscar la parada
+        # corresponent al JSON.
 
-
-        for stop in train["stops"]:
-
+        for stop in train.get(
+            "stops",
+            []
+        ):
 
             if (
                 stop.get(
-                    "stop_id"
-                )
+                    "stop_id",
+                    ""
+                ).strip()
                 != stop_id
             ):
 
@@ -229,11 +208,14 @@ for train in dades["trains"]:
             # RETARD
             # ------------------------------------------------
 
+            delay_seconds = None
+
+
             if stop_update.HasField(
                 "arrival"
             ):
 
-                delay = (
+                delay_seconds = (
                     stop_update.arrival.delay
                 )
 
@@ -241,17 +223,23 @@ for train in dades["trains"]:
                 "departure"
             ):
 
-                delay = (
+                delay_seconds = (
                     stop_update.departure.delay
                 )
 
-            else:
+
+            if delay_seconds is None:
 
                 continue
 
 
-            # GTFS-RT dona el retard
-            # en segons.
+            # ------------------------------------------------
+            # CONVERTIR RETARD
+            # ------------------------------------------------
+
+            delay_minutes = round(
+                delay_seconds / 60
+            )
 
 
             scheduled = (
@@ -263,66 +251,77 @@ for train in dades["trains"]:
 
             if scheduled is not None:
 
-                actual = (
-                    scheduled
-                    +
-                    round(
-                        delay / 60
-                    )
-                )
-
-
                 stop[
                     "actual_minutes"
-                ] = actual
+                ] = (
+                    scheduled
+                    +
+                    delay_minutes
+                )
 
 
             stop[
                 "delay_seconds"
-            ] = delay
+            ] = delay_seconds
+
+
+            stop[
+                "delay_minutes"
+            ] = delay_minutes
+
+
+            parades_actualitzades += 1
 
 
             break
 
 
     # --------------------------------------------------------
-    # RETARD FINAL
+    # CALCULAR RETARD FINAL
     # --------------------------------------------------------
 
-    if train["stops"]:
+    stops = train.get(
+        "stops",
+        []
+    )
 
-        ultima = (
-            train["stops"][-1]
+
+    if stops:
+
+        ultima = stops[-1]
+
+
+        scheduled_final = (
+            ultima.get(
+                "scheduled_arrival"
+            )
+        )
+
+
+        actual_final = (
+            ultima.get(
+                "actual_minutes"
+            )
         )
 
 
         if (
-            ultima.get(
-                "actual_minutes"
-            )
-            is not None
+            scheduled_final is not None
             and
-            ultima.get(
-                "scheduled_arrival"
-            )
-            is not None
+            actual_final is not None
         ):
 
             train[
                 "final_delay_minutes"
             ] = (
-                ultima[
-                    "actual_minutes"
-                ]
+                actual_final
                 -
-                ultima[
-                    "scheduled_arrival"
-                ]
+                scheduled_final
             )
 
 
     # --------------------------------------------------------
-    # ESTAT
+    # MARCAR COM A INICIAT
     # --------------------------------------------------------
 
     train[
@@ -330,15 +329,8 @@ for train in dades["trains"]:
     ] = True
 
 
-print()
-print(
-    "Trens R15 actualitzats:",
-    actualitzats
-)
-
-
 # ============================================================
-# GUARDAR
+# INFORMACIÓ DE L'ACTUALITZACIÓ
 # ============================================================
 
 dades[
@@ -349,6 +341,17 @@ dades[
     .isoformat()
 )
 
+
+dades[
+    "realtime_source"
+] = (
+    GTFS_RT_URL
+)
+
+
+# ============================================================
+# GUARDAR JSON
+# ============================================================
 
 with open(
     fitxer,
@@ -364,19 +367,28 @@ with open(
     )
 
 
+# ============================================================
+# RESUM
+# ============================================================
+
 print()
+print("==========================================")
+
 print(
-    "Fitxer actualitzat:",
+    "Trips R15 actualitzats:",
+    actualitzats
+)
+
+print(
+    "Parades actualitzades:",
+    parades_actualitzades
+)
+
+print(
+    "Fitxer:",
     fitxer
 )
 
-
-print(
-    "=========================================="
-)
-print(
-    "FI REALTIME"
-)
-print(
-    "=========================================="
-)
+print("==========================================")
+print("FI REALTIME")
+print("==========================================")
