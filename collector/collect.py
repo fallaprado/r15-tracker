@@ -109,13 +109,45 @@ def main():
     # 2. Identificar trips que pertanyen a R15
     # -------------------------------------------------
 
-    r15_trips = []
+   r15_trips = []
 
-    for trip in trips:
+for trip in trips:
 
-        if trip.get("route_id") in r15_routes:
+    route_id = trip.get("route_id", "")
 
-            r15_trips.append(trip)
+    if route_id in r15_routes:
+
+        r15_trips.append(trip)
+
+
+print()
+print("EXEMPLE DE TRIPS DEL GTFS:")
+print("---------------------------")
+
+for trip in trips[:10]:
+
+    print(
+        "trip_id:",
+        trip.get("trip_id"),
+        "| route_id:",
+        trip.get("route_id"),
+        "| service_id:",
+        trip.get("service_id"),
+        "| headsign:",
+        trip.get("trip_headsign")
+    )
+
+print("---------------------------")
+
+print(
+    "Total trips al GTFS:",
+    len(trips)
+)
+
+print(
+    "Trips R15:",
+    len(r15_trips)
+)
 
     print()
     print(
