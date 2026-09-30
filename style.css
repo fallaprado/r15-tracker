@@ -9,6 +9,10 @@ body {
     color: #1f2933;
 }
 
+/* =========================================================
+   CAPÇALERA
+   ========================================================= */
+
 header {
     background: #ffffff;
     padding: 25px 20px;
@@ -26,11 +30,21 @@ header p {
     color: #667085;
 }
 
+
+/* =========================================================
+   CONTINGUT PRINCIPAL
+   ========================================================= */
+
 main {
     max-width: 1000px;
     margin: 25px auto;
     padding: 0 15px;
 }
+
+
+/* =========================================================
+   SELECTORS
+   ========================================================= */
 
 .controls {
     display: flex;
@@ -58,10 +72,20 @@ input[type="date"] {
     font-size: 16px;
 }
 
+
+/* =========================================================
+   RESUM
+   ========================================================= */
+
 #summary {
     margin-bottom: 15px;
     color: #555;
 }
+
+
+/* =========================================================
+   TARGETA DEL TREN
+   ========================================================= */
 
 .train {
     background: white;
@@ -88,6 +112,11 @@ input[type="date"] {
     border-left-color: #d32f2f;
 }
 
+
+/* =========================================================
+   CAPÇALERA DEL TREN
+   ========================================================= */
+
 .train-header {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -100,6 +129,11 @@ input[type="date"] {
 .train-header:hover {
     background: #f8fafc;
 }
+
+
+/* =========================================================
+   NÚMERO DEL TREN
+   ========================================================= */
 
 .train-number {
     display: flex;
@@ -116,6 +150,11 @@ input[type="date"] {
     color: #777;
 }
 
+
+/* =========================================================
+   HORARIS
+   ========================================================= */
+
 .train-route {
     display: flex;
     justify-content: center;
@@ -128,6 +167,11 @@ input[type="date"] {
 .train-route .arrow {
     color: #777;
 }
+
+
+/* =========================================================
+   ESTAT DEL TREN
+   ========================================================= */
 
 .train-status {
     text-align: right;
@@ -159,25 +203,38 @@ input[type="date"] {
     }
 }
 
+
+/* =========================================================
+   PARADES
+   ========================================================= */
+
 /*
-   LES PARADES ESTAN OCULTES
-   fins que es desplega el tren.
+   Per defecte les parades estan amagades.
 */
 
 .stops {
-    display: none;
+    display: none !important;
     border-top: 1px solid #e5e7eb;
     padding: 5px 16px 15px;
 }
 
+
 /*
-   AQUESTA ÉS LA REGLA IMPORTANT:
-   quan cliquem el tren apareix.
+   Quan el tren té la classe "expanded",
+   les parades es mostren.
+
+   !important evita que qualsevol altra regla
+   del navegador o del CSS les torni a ocultar.
 */
 
 .train.expanded .stops {
-    display: block;
+    display: block !important;
 }
+
+
+/* =========================================================
+   CADA PARADA
+   ========================================================= */
 
 .stop {
     display: grid;
@@ -194,6 +251,11 @@ input[type="date"] {
 .stop-station {
     font-size: 15px;
 }
+
+
+/* =========================================================
+   HORES DE CADA PARADA
+   ========================================================= */
 
 .stop-times {
     display: flex;
@@ -215,11 +277,21 @@ input[type="date"] {
     color: #aaa;
 }
 
+
+/* =========================================================
+   RETARDS
+   ========================================================= */
+
 .delay {
     color: #d32f2f;
     font-weight: bold;
     font-size: 13px;
 }
+
+
+/* =========================================================
+   DEVOLUCIÓ EXPRESS
+   ========================================================= */
 
 .refund-message {
     margin-top: 15px;
@@ -231,6 +303,11 @@ input[type="date"] {
     text-align: center;
 }
 
+
+/* =========================================================
+   CARREGANT / SENSE DADES
+   ========================================================= */
+
 .loading,
 .empty {
     background: white;
@@ -239,6 +316,11 @@ input[type="date"] {
     border-radius: 10px;
     color: #777;
 }
+
+
+/* =========================================================
+   MÒBIL
+   ========================================================= */
 
 @media (max-width: 700px) {
 
@@ -266,5 +348,6 @@ input[type="date"] {
 
     .stop-times {
         justify-content: flex-start;
+        flex-wrap: wrap;
     }
 }
