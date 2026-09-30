@@ -1,0 +1,47 @@
+name: Actualitzar R15 en temps real
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+
+  realtime:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Descarregar repositori
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instal·lar dependències
+        run: |
+          pip install requests gtfs-realtime-bindings
+
+      - name: Actualitzar dades en temps real
+        run: |
+          python collector/realtime.py
+
+      - name: Guardar dades
+        run: |
+
+          git config user.name "github-actions[bot]"
+
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/
+
+          git diff --cached --quiet || git commit -m "Temps real R15 $(date +'%Y-%m-%d %H:%M')"
+
+          git push
