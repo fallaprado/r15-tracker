@@ -1,4 +1,3 @@
-```javascript
 let currentData = null;
 
 const direction = document.getElementById("direction");
@@ -667,4 +666,4 @@ setInterval(
    ============================================================ */
 
 loadData();
-```
+
