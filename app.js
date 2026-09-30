@@ -1,3 +1,4 @@
+```javascript
 let currentData = null;
 
 const direction = document.getElementById("direction");
@@ -5,9 +6,35 @@ const date = document.getElementById("date");
 const trains = document.getElementById("trains");
 const summary = document.getElementById("summary");
 
-const today = new Date().toISOString().split("T")[0];
 
-date.value = today;
+/* ============================================================
+   DATA LOCAL
+   ============================================================ */
+
+function getTodayLocal() {
+
+    const now = new Date();
+
+    const year = now.getFullYear();
+
+    const month = String(
+        now.getMonth() + 1
+    ).padStart(2, "0");
+
+    const day = String(
+        now.getDate()
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
+
+
+date.value = getTodayLocal();
+
+
+/* ============================================================
+   CARREGAR DADES
+   ============================================================ */
 
 async function loadData() {
 
@@ -23,141 +50,293 @@ async function loadData() {
             `data/${date.value}.json?t=${Date.now()}`
         );
 
+
         if (!response.ok) {
+
             throw new Error(
                 "No existeixen dades per aquest dia"
             );
+
         }
+
 
         currentData = await response.json();
 
         render();
 
+
     } catch (error) {
 
         trains.innerHTML = `
-            <p>
-                No hi ha dades disponibles
-                per aquest dia.
-            </p>
+            <div class="empty">
+                <strong>
+                    No hi ha dades disponibles
+                </strong>
+
+                <p>
+                    No s'han trobat dades per al
+                    ${formatDate(date.value)}.
+                </p>
+            </div>
         `;
 
         summary.innerHTML = "";
     }
 }
 
+
+/* ============================================================
+   RENDER PRINCIPAL
+   ============================================================ */
+
 function render() {
 
-    const selectedDirection = direction.value;
+    if (!currentData) {
+        return;
+    }
+
+
+    const selectedDirection =
+        direction.value;
+
 
     const selectedTrains =
-        currentData.trains.filter(
-            train =>
-                train.direction === selectedDirection
-        );
+        currentData.trains
+            .filter(
+                train =>
+                    train.direction ===
+                    selectedDirection
+            )
+            .sort(
+                (a, b) =>
+                    new Date(a.departure)
+                    -
+                    new Date(b.departure)
+            );
+
+
+    const directionName =
+        selectedDirection === "REUS_BAR"
+            ? "Reus → Barcelona"
+            : "Barcelona → Reus";
+
 
     summary.innerHTML = `
-        <strong>
-            ${selectedTrains.length}
-            circulacions
-        </strong>
+        <div class="summary-card">
+
+            <strong>
+                ${selectedTrains.length}
+                circulacions
+            </strong>
+
+            <span>
+                ${directionName}
+            </span>
+
+        </div>
     `;
+
 
     trains.innerHTML = "";
 
-    selectedTrains.forEach(train => {
 
-        const element = createTrain(train);
+    if (selectedTrains.length === 0) {
 
-        trains.appendChild(element);
+        trains.innerHTML = `
+            <div class="empty">
+                No hi ha circulacions
+                per aquest sentit.
+            </div>
+        `;
 
-    });
+        return;
+    }
+
+
+    selectedTrains.forEach(
+        train => {
+
+            const element =
+                createTrain(train);
+
+            trains.appendChild(element);
+
+        }
+    );
 }
+
+
+/* ============================================================
+   CREAR TREN
+   ============================================================ */
 
 function createTrain(train) {
 
     const container =
         document.createElement("div");
 
-    const now = new Date();
+
+    const now =
+        new Date();
+
 
     const departure =
         new Date(train.departure);
 
+
+    const arrival =
+        new Date(train.arrival);
+
+
     let status = "pending";
 
-    if (train.arrived) {
 
-        status = "finished";
-
-    } else if (
-        train.started ||
-        departure <= now
-    ) {
-
-        status = "running";
-
-    }
+    /*
+     * Un tren amb retard final superior
+     * a 15 minuts té prioritat visual.
+     */
 
     if (
         train.final_delay_minutes > 15
+        &&
+        arrival <= now
     ) {
 
         status = "refund";
 
     }
 
+    else if (
+        arrival <= now
+    ) {
+
+        status = "finished";
+
+    }
+
+    else if (
+        departure <= now
+        ||
+        train.started
+    ) {
+
+        status = "running";
+
+    }
+
+
     container.className =
         `train ${status}`;
 
+
+    /* ========================================================
+       TEXT ESTAT
+       ======================================================== */
+
     let statusText;
+
 
     if (status === "pending") {
 
         statusText =
             "Encara no ha sortit";
 
-    } else if (status === "running") {
+    }
 
-        statusText =
-            `<span class="live-dot"></span>
-             En circulació`;
+    else if (status === "running") {
 
-    } else if (status === "finished") {
+        statusText = `
+            <span class="live-dot"></span>
+            En circulació
+        `;
+
+    }
+
+    else if (status === "finished") {
 
         statusText =
             "✓ Finalitzat";
 
-    } else {
+    }
+
+    else {
 
         statusText =
-            "⚠ Retard";
+            "⚠ Retard >15 min";
 
     }
+
+
+    /* ========================================================
+       RETARD
+       ======================================================== */
+
+    let delayText = "";
+
+
+    if (
+        train.final_delay_minutes
+        &&
+        train.final_delay_minutes > 0
+    ) {
+
+        delayText = `
+            <span class="train-delay">
+                +${train.final_delay_minutes}'
+            </span>
+        `;
+
+    }
+
+
+    /* ========================================================
+       HTML
+       ======================================================== */
 
     container.innerHTML = `
 
         <div class="train-header">
 
-            <div>
+            <div class="train-main">
 
                 <div class="train-number">
+
                     R15 · ${train.train_id}
+
                 </div>
 
-                <div>
-                    ${formatTime(train.departure)}
-                    →
-                    ${formatTime(train.arrival)}
+
+                <div class="train-route">
+
+                    <strong>
+                        ${formatTime(
+                            train.departure
+                        )}
+                    </strong>
+
+                    <span>→</span>
+
+                    <strong>
+                        ${formatTime(
+                            train.arrival
+                        )}
+                    </strong>
+
                 </div>
 
             </div>
 
-            <div class="status">
+
+            <div class="train-status">
+
                 ${statusText}
+
+                ${delayText}
+
             </div>
 
         </div>
+
 
         <div class="stops">
 
@@ -167,8 +346,11 @@ function createTrain(train) {
 
     `;
 
+
     container
-        .querySelector(".train-header")
+        .querySelector(
+            ".train-header"
+        )
         .addEventListener(
             "click",
             () => {
@@ -180,86 +362,160 @@ function createTrain(train) {
             }
         );
 
+
     return container;
 }
+
+
+/* ============================================================
+   PARADES
+   ============================================================ */
 
 function createStops(train) {
 
     let html = `
 
-        <div class="stop">
+        <div class="stop stop-header">
 
-            <strong>Estació</strong>
-            <strong>Teòrica</strong>
-            <strong>Real</strong>
-            <strong>Retard</strong>
+            <strong>
+                Estació
+            </strong>
+
+            <strong>
+                Teòrica
+            </strong>
+
+            <strong>
+                Real
+            </strong>
+
+            <strong>
+                Retard
+            </strong>
 
         </div>
 
     `;
 
-    train.stops.forEach(stop => {
 
-        const delay =
-            stop.actual_minutes === null
-                ? null
-                :
-                stop.actual_minutes -
-                stop.scheduled_minutes;
+    train.stops.forEach(
+        stop => {
 
-        html += `
+            const scheduled =
+                stop.scheduled_arrival
+                ??
+                stop.scheduled_departure;
 
-            <div class="stop">
 
-                <span>
-                    ${stop.station}
-                </span>
+            const actual =
+                stop.actual_minutes;
 
-                <span>
-                    ${minutesToTime(
-                        stop.scheduled_minutes
-                    )}
-                </span>
 
-                <span>
-                    ${
-                        stop.actual_minutes === null
-                        ?
-                        "—"
-                        :
-                        minutesToTime(
-                            stop.actual_minutes
-                        )
-                    }
-                </span>
+            let delay = null;
 
-                <span
-                    class="
-                        delay
+
+            if (
+                actual !== null &&
+                actual !== undefined &&
+                scheduled !== null &&
+                scheduled !== undefined
+            ) {
+
+                delay =
+                    actual -
+                    scheduled;
+
+            }
+
+
+            html += `
+
+                <div class="stop">
+
+                    <span>
+                        ${stop.station}
+                    </span>
+
+                    <span>
                         ${
-                            delay !== null &&
-                            delay > 0
-                            ?
-                            "late"
-                            :
-                            ""
+                            scheduled !== null
+                            &&
+                            scheduled !== undefined
+                                ?
+                            minutesToTime(
+                                scheduled
+                            )
+                                :
+                            "—"
                         }
-                    "
-                >
-                    ${
-                        delay === null
-                        ?
-                        "—"
-                        :
-                        `${delay > 0 ? "+" : ""}${delay}'`
-                    }
-                </span>
+                    </span>
 
-            </div>
+                    <span
+                        class="${
+                            actual !== null
+                            &&
+                            actual !== undefined
+                                ?
+                            "actual"
+                                :
+                            ""
+                        }"
+                    >
+                        ${
+                            actual !== null
+                            &&
+                            actual !== undefined
+                                ?
+                            minutesToTime(
+                                actual
+                            )
+                                :
+                            "—"
+                        }
+                    </span>
 
-        `;
+                    <span
+                        class="
+                            delay
+                            ${
+                                delay !== null
+                                &&
+                                delay > 0
+                                    ?
+                                "late"
+                                    :
+                                ""
+                            }
+                        "
+                    >
+                        ${
+                            delay === null
+                                ?
+                            "—"
+                                :
+                            delay > 0
+                                ?
+                            `+${delay}'`
+                                :
+                            delay < 0
+                                ?
+                            `${delay}'`
+                                :
+                            "0'"
+                        }
+                    </span>
 
-    });
+                </div>
+
+            `;
+
+        }
+    );
+
+
+    /* ========================================================
+       DEVOLUCIÓ EXPRESS
+       ======================================================== */
 
     if (
         train.final_delay_minutes > 15
@@ -278,10 +534,21 @@ function createStops(train) {
 
     }
 
+
     return html;
 }
 
+
+/* ============================================================
+   FORMATEJAR HORA
+   ============================================================ */
+
 function formatTime(value) {
+
+    if (!value) {
+        return "—";
+    }
+
 
     return new Date(value)
         .toLocaleTimeString(
@@ -293,36 +560,111 @@ function formatTime(value) {
         );
 }
 
+
+/* ============================================================
+   MINUTS → HH:MM
+   ============================================================ */
+
 function minutesToTime(minutes) {
+
+    if (
+        minutes === null ||
+        minutes === undefined
+    ) {
+
+        return "—";
+
+    }
+
+
+    const total =
+        ((minutes % 1440) + 1440)
+        % 1440;
+
 
     const h =
         Math.floor(
-            minutes / 60
-        ) % 24;
+            total / 60
+        );
+
 
     const m =
-        minutes % 60;
+        total % 60;
 
-    return String(h)
-        .padStart(2, "0")
-        + ":" +
-        String(m)
-        .padStart(2, "0");
+
+    return (
+        String(h).padStart(2, "0")
+        +
+        ":"
+        +
+        String(m).padStart(2, "0")
+    );
 }
+
+
+/* ============================================================
+   DATA → TEXT
+   ============================================================ */
+
+function formatDate(value) {
+
+    if (!value) {
+        return "";
+    }
+
+
+    const parts =
+        value.split("-");
+
+
+    if (parts.length !== 3) {
+        return value;
+    }
+
+
+    return (
+        parts[2]
+        +
+        "/"
+        +
+        parts[1]
+        +
+        "/"
+        +
+        parts[0]
+    );
+}
+
+
+/* ============================================================
+   EVENTS
+   ============================================================ */
 
 direction.addEventListener(
     "change",
     render
 );
 
+
 date.addEventListener(
     "change",
     loadData
 );
+
+
+/*
+ * Actualitzar la pantalla cada minut.
+ */
 
 setInterval(
     loadData,
     60000
 );
 
+
+/* ============================================================
+   INICI
+   ============================================================ */
+
 loadData();
+```
