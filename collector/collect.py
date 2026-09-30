@@ -5,7 +5,7 @@ import csv
 from collections import defaultdict
 from datetime import date
 
-print("=== R15 - CIRCULACIONS 1 OCTUBRE 2026 ===")
+print("=== DIAGNÒSTIC PARADES R15 - 1 OCTUBRE 2026 ===")
 
 GTFS_API = "https://data.renfe.com/api/3/action/package_show?id=horarios-cercanias"
 
@@ -23,8 +23,6 @@ def descarregar_gtfs():
 
         if recurs.get("format", "").upper() == "GTFS":
 
-            print("Descarregant GTFS oficial...")
-
             resposta = requests.get(recurs["url"])
             resposta.raise_for_status()
 
@@ -32,7 +30,7 @@ def descarregar_gtfs():
                 io.BytesIO(resposta.content)
             )
 
-    raise Exception("No s'ha trobat el GTFS oficial")
+    raise Exception("No s'ha trobat el GTFS")
 
 
 def llegir(zip_gtfs, nom):
@@ -46,7 +44,6 @@ def llegir(zip_gtfs, nom):
             )
         )
 
-        # Renfe té alguns camps amb espais al final
         lector.fieldnames = [
             camp.strip()
             for camp in lector.fieldnames
@@ -89,10 +86,6 @@ def servei_actiu(service, data):
 
 
 def main():
-
-    # =========================================
-    # DESCARREGAR GTFS
-    # =========================================
 
     gtfs = descarregar_gtfs()
 
@@ -155,14 +148,8 @@ def main():
                 route["route_id"].strip()
             )
 
-    print()
-    print(
-        "Routes R15:",
-        len(r15_routes)
-    )
-
     # =========================================
-    # SERVEIS ACTIUS EL 1/10/2026
+    # SERVEIS ACTIUS
     # =========================================
 
     serveis_actius = set()
@@ -177,18 +164,6 @@ def main():
             serveis_actius.add(
                 service["service_id"].strip()
             )
-
-    print(
-        "Serveis actius el",
-        DATA,
-        ":",
-        len(serveis_actius)
-    )
-
-    print(
-        "Serveis:",
-        sorted(serveis_actius)
-    )
 
     # =========================================
     # TRIPS R15 DEL DIA
@@ -214,20 +189,10 @@ def main():
             service_id in serveis_actius
         ):
 
-            r15_trips.append(
-                trip
-            )
-
-    print()
-    print(
-        "Trips R15 el",
-        DATA,
-        ":",
-        len(r15_trips)
-    )
+            r15_trips.append(trip)
 
     # =========================================
-    # BUSCAR PARADES DELS TRIPS
+    # STOP TIMES
     # =========================================
 
     r15_trip_ids = {
@@ -239,23 +204,17 @@ def main():
 
     for stop_time in stop_times:
 
-        trip_id = stop_time[
-            "trip_id"
-        ]
+        trip_id = stop_time["trip_id"]
 
         if trip_id not in r15_trip_ids:
             continue
 
-        stop_id = stop_time[
-            "stop_id"
-        ]
+        stop_id = stop_time["stop_id"]
 
         parades[trip_id].append({
 
             "sequence": int(
-                stop_time[
-                    "stop_sequence"
-                ]
+                stop_time["stop_sequence"]
             ),
 
             "station": stop_names.get(
@@ -275,34 +234,23 @@ def main():
         })
 
     # =========================================
-    # ORDENAR PARADES
+    # ORDENAR
     # =========================================
 
     for trip_id in parades:
 
         parades[trip_id].sort(
-            key=lambda x:
-                x["sequence"]
+            key=lambda x: x["sequence"]
         )
 
     # =========================================
-    # MOSTRAR CIRCULACIONS QUE PASSEN PER REUS
+    # MOSTRAR TOTS ELS TRIPS
     # =========================================
 
     print()
-    print(
-        "=========================================="
-    )
-
-    print(
-        "CIRCULACIONS R15 QUE PASSEN PER REUS"
-    )
-
-    print(
-        "=========================================="
-    )
-
-    total_reus = 0
+    print("==========================================")
+    print("40 TRIPS R15 DEL 1/10/2026")
+    print("==========================================")
 
     for trip in r15_trips:
 
@@ -313,35 +261,8 @@ def main():
             []
         )
 
-        if not stops_trip:
-            continue
-
-        # -------------------------------------
-        # Buscar Reus
-        # -------------------------------------
-
-        reus_index = None
-
-        for i, parada in enumerate(
-            stops_trip
-        ):
-
-            if "REUS" in parada[
-                "station"
-            ].upper():
-
-                reus_index = i
-                break
-
-        if reus_index is None:
-            continue
-
-        total_reus += 1
-
         print()
-        print(
-            "------------------------------------------"
-        )
+        print("------------------------------------------")
 
         print(
             "TRIP:",
@@ -350,48 +271,49 @@ def main():
 
         print(
             "ROUTE:",
-            trip.get(
-                "route_id",
-                ""
-            )
+            trip.get("route_id")
         )
 
         print(
             "SERVICE:",
-            trip.get(
-                "service_id",
-                ""
-            )
+            trip.get("service_id")
         )
 
         print(
-            "ORIGEN:",
+            "NOMBRE DE PARADES:",
+            len(stops_trip)
+        )
+
+        if not stops_trip:
+            print(
+                "⚠️ Aquest trip no té stop_times"
+            )
+            continue
+
+        print(
+            "PRIMERA:",
             stops_trip[0]["station"],
+            "|",
             stops_trip[0]["departure"]
         )
 
         print(
-            "REUS:",
-            stops_trip[reus_index]["arrival"],
-            "→",
-            stops_trip[reus_index]["departure"]
-        )
-
-        print(
-            "DESTÍ:",
+            "ÚLTIMA:",
             stops_trip[-1]["station"],
+            "|",
             stops_trip[-1]["arrival"]
         )
 
-        print(
-            "PARADES:"
-        )
+        print()
+        print("TOTES LES PARADES:")
 
         for parada in stops_trip:
 
             print(
                 "   ",
-                parada["station"],
+                parada["sequence"],
+                "|",
+                repr(parada["station"]),
                 "|",
                 parada["arrival"],
                 "→",
@@ -399,29 +321,47 @@ def main():
             )
 
     # =========================================
-    # RESUM FINAL
+    # BUSCAR QUALSEVOL ESTACIÓ QUE CONTINGA
+    # "REUS"
     # =========================================
 
     print()
+    print("==========================================")
+    print("ESTACIONS QUE CONTENEN 'REUS'")
+    print("==========================================")
+
+    trobades = set()
+
+    for stop_id, nom in stop_names.items():
+
+        if "REUS" in nom.upper():
+
+            trobades.add(
+                (
+                    stop_id,
+                    nom
+                )
+            )
+
+    for stop_id, nom in sorted(trobades):
+
+        print(
+            repr(stop_id),
+            "->",
+            repr(nom)
+        )
+
+    print()
     print(
-        "=========================================="
+        "Total estacions amb REUS:",
+        len(trobades)
     )
 
-    print(
-        "TOTAL TRIPS R15:",
-        len(r15_trips)
-    )
-
-    print(
-        "TOTAL TRIPS QUE PASSEN PER REUS:",
-        total_reus
-    )
-
-    print(
-        "=========================================="
-    )
+    print()
+    print("==========================================")
+    print("FI DEL DIAGNÒSTIC")
+    print("==========================================")
 
 
 if __name__ == "__main__":
-
     main()
