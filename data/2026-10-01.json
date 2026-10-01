@@ -1724,7 +1724,7 @@
       "direction": "REUS_BAR",
       "departure": "2026-10-01T15:06:00",
       "arrival": "2026-10-01T16:54:00",
-      "started": false,
+      "started": true,
       "arrived": false,
       "final_delay_minutes": 0,
       "stops": [
@@ -1740,7 +1740,12 @@
           "stop_id": "71401",
           "scheduled_arrival": 915,
           "scheduled_departure": 915,
-          "actual_minutes": null
+          "actual_minutes": 934,
+          "delay_seconds": 0,
+          "delay_minutes": 0,
+          "actual_time": "2026-10-01T15:34:00+02:00",
+          "realtime_event": "arrival",
+          "realtime_captured_at": "2026-10-01T15:28:36.434679+02:00"
         },
         {
           "station": "Tarragona",
@@ -1798,7 +1803,8 @@
           "scheduled_departure": 1014,
           "actual_minutes": null
         }
-      ]
+      ],
+      "schedule_relationship": "SCHEDULED"
     },
     {
       "train_id": "5172J15013R15",
@@ -1807,7 +1813,7 @@
       "direction": "BAR_REUS",
       "departure": "2026-10-01T15:15:00",
       "arrival": "2026-10-01T17:03:00",
-      "started": false,
+      "started": true,
       "arrived": false,
       "final_delay_minutes": 0,
       "stops": [
@@ -1830,7 +1836,12 @@
           "stop_id": "71801",
           "scheduled_arrival": 931,
           "scheduled_departure": 933,
-          "actual_minutes": null
+          "actual_minutes": 932,
+          "delay_seconds": 60,
+          "delay_minutes": 1,
+          "actual_time": "2026-10-01T15:32:20+02:00",
+          "realtime_event": "arrival",
+          "realtime_captured_at": "2026-10-01T15:28:36.434705+02:00"
         },
         {
           "station": "Vilanova i la Geltrú",
@@ -1881,7 +1892,8 @@
           "scheduled_departure": 1023,
           "actual_minutes": null
         }
-      ]
+      ],
+      "schedule_relationship": "SCHEDULED"
     },
     {
       "train_id": "5172J30503R15",
@@ -3179,6 +3191,6 @@
       ]
     }
   ],
-  "realtime_updated_at": "2026-10-01T07:45:57.927458+00:00",
+  "realtime_updated_at": "2026-10-01T15:28:36.434714+02:00",
   "realtime_source": "https://gtfsrt.renfe.com/trip_updates.json"
 }
