@@ -95,7 +95,7 @@
       "direction": "REUS_BAR",
       "departure": "2026-10-01T06:06:00",
       "arrival": "2026-10-01T07:54:00",
-      "started": false,
+      "started": true,
       "arrived": false,
       "final_delay_minutes": 0,
       "stops": [
@@ -160,7 +160,11 @@
           "stop_id": "71802",
           "scheduled_arrival": 463,
           "scheduled_departure": 464,
-          "actual_minutes": null
+          "actual_minutes": 361,
+          "delay_seconds": 1080,
+          "delay_minutes": 18,
+          "actual_time": "2026-10-01T06:01:18",
+          "realtime_event": "arrival"
         },
         {
           "station": "Barcelona Estació de França",
@@ -169,7 +173,8 @@
           "scheduled_departure": 474,
           "actual_minutes": null
         }
-      ]
+      ],
+      "schedule_relationship": "SCHEDULED"
     },
     {
       "train_id": "5172J30531R15",
@@ -178,7 +183,7 @@
       "direction": "BAR_REUS",
       "departure": "2026-10-01T06:15:00",
       "arrival": "2026-10-01T09:08:00",
-      "started": false,
+      "started": true,
       "arrived": false,
       "final_delay_minutes": 0,
       "stops": [
@@ -243,7 +248,11 @@
           "stop_id": "71401",
           "scheduled_arrival": 472,
           "scheduled_departure": 472,
-          "actual_minutes": null
+          "actual_minutes": 359,
+          "delay_seconds": 420,
+          "delay_minutes": 7,
+          "actual_time": "2026-10-01T05:59:27",
+          "realtime_event": "arrival"
         },
         {
           "station": "Reus",
@@ -301,7 +310,8 @@
           "scheduled_departure": 548,
           "actual_minutes": null
         }
-      ]
+      ],
+      "schedule_relationship": "SCHEDULED"
     },
     {
       "train_id": "5172J30530R15",
@@ -310,7 +320,7 @@
       "direction": "BAR_REUS",
       "departure": "2026-10-01T06:31:00",
       "arrival": "2026-10-01T09:24:00",
-      "started": false,
+      "started": true,
       "arrived": false,
       "final_delay_minutes": 0,
       "stops": [
@@ -389,7 +399,11 @@
           "stop_id": "71502",
           "scheduled_arrival": 485,
           "scheduled_departure": 485,
-          "actual_minutes": null
+          "actual_minutes": 363,
+          "delay_seconds": -60,
+          "delay_minutes": -1,
+          "actual_time": "2026-10-01T06:03:37",
+          "realtime_event": "arrival"
         },
         {
           "station": "Torredembarra",
@@ -433,7 +447,8 @@
           "scheduled_departure": 564,
           "actual_minutes": null
         }
-      ]
+      ],
+      "schedule_relationship": "SCHEDULED"
     },
     {
       "train_id": "5172J15001R15",
@@ -3164,6 +3179,6 @@
       ]
     }
   ],
-  "realtime_updated_at": "2026-10-01T05:42:53.838944+00:00",
+  "realtime_updated_at": "2026-10-01T05:55:39.943917+00:00",
   "realtime_source": "https://gtfsrt.renfe.com/trip_updates.json"
 }
