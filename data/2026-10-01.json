@@ -1780,7 +1780,12 @@
           "stop_id": "71700",
           "scheduled_arrival": 961,
           "scheduled_departure": 962,
-          "actual_minutes": null
+          "actual_minutes": 1020,
+          "delay_seconds": 3540,
+          "delay_minutes": 59,
+          "actual_time": "2026-10-01T17:00:22+02:00",
+          "realtime_event": "arrival",
+          "realtime_captured_at": "2026-10-01T16:49:49.488350+02:00"
         },
         {
           "station": "Barcelona-Sants",
@@ -1869,7 +1874,12 @@
           "stop_id": "71502",
           "scheduled_arrival": 992,
           "scheduled_departure": 992,
-          "actual_minutes": null
+          "actual_minutes": 1012,
+          "delay_seconds": 1200,
+          "delay_minutes": 20,
+          "actual_time": "2026-10-01T16:52:04+02:00",
+          "realtime_event": "arrival",
+          "realtime_captured_at": "2026-10-01T16:49:49.488388+02:00"
         },
         {
           "station": "Tarragona",
@@ -1902,7 +1912,7 @@
       "direction": "BAR_REUS",
       "departure": "2026-10-01T15:45:00",
       "arrival": "2026-10-01T19:18:00",
-      "started": false,
+      "started": true,
       "arrived": false,
       "final_delay_minutes": 0,
       "stops": [
@@ -1939,7 +1949,12 @@
           "stop_id": "71600",
           "scheduled_arrival": 1008,
           "scheduled_departure": 1009,
-          "actual_minutes": null
+          "actual_minutes": 1019,
+          "delay_seconds": 720,
+          "delay_minutes": 12,
+          "actual_time": "2026-10-01T16:59:37+02:00",
+          "realtime_event": "arrival",
+          "realtime_captured_at": "2026-10-01T16:49:49.488422+02:00"
         },
         {
           "station": "Torredembarra",
@@ -2011,7 +2026,8 @@
           "scheduled_departure": 1158,
           "actual_minutes": null
         }
-      ]
+      ],
+      "schedule_relationship": "SCHEDULED"
     },
     {
       "train_id": "5172J15016R15",
@@ -2103,7 +2119,7 @@
       "direction": "BAR_REUS",
       "departure": "2026-10-01T16:45:00",
       "arrival": "2026-10-01T18:33:00",
-      "started": false,
+      "started": true,
       "arrived": false,
       "final_delay_minutes": 0,
       "stops": [
@@ -2119,7 +2135,12 @@
           "stop_id": "71802",
           "scheduled_arrival": 1015,
           "scheduled_departure": 1016,
-          "actual_minutes": null
+          "actual_minutes": 1017,
+          "delay_seconds": 120,
+          "delay_minutes": 2,
+          "actual_time": "2026-10-01T16:57:16+02:00",
+          "realtime_event": "arrival",
+          "realtime_captured_at": "2026-10-01T16:49:49.488446+02:00"
         },
         {
           "station": "Barcelona-Sants",
@@ -2177,7 +2198,8 @@
           "scheduled_departure": 1113,
           "actual_minutes": null
         }
-      ]
+      ],
+      "schedule_relationship": "SCHEDULED"
     },
     {
       "train_id": "5172J15018R15",
@@ -3191,6 +3213,6 @@
       ]
     }
   ],
-  "realtime_updated_at": "2026-10-01T15:28:36.434714+02:00",
+  "realtime_updated_at": "2026-10-01T16:49:49.488457+02:00",
   "realtime_source": "https://gtfsrt.renfe.com/trip_updates.json"
 }
