@@ -1,28 +1,41 @@
 import requests
 import json
 import os
-from datetime import datetime, date
+from datetime import datetime, date, timezone
+from zoneinfo import ZoneInfo
 
 GTFS_RT_URL = "https://gtfsrt.renfe.com/trip_updates.json"
 DATA_DIR = "data"
 
 avui = date.today()
+
 fitxer = os.path.join(
     DATA_DIR,
     f"{avui.isoformat()}.json"
 )
+
+MADRID_TZ = ZoneInfo("Europe/Madrid")
+
 
 print("==========================================")
 print("R15 REALTIME")
 print("Data:", avui)
 print("==========================================")
 
+
+# ============================================================
+# CARREGAR FITXER DEL DIA
+# ============================================================
+
 if not os.path.exists(fitxer):
+
     raise Exception(
         f"No existeix el fitxer {fitxer}"
     )
 
+
 print("Carregant:", fitxer)
+
 
 with open(
     fitxer,
@@ -39,15 +52,18 @@ with open(
 
 print("Descarregant GTFS-RT de Renfe...")
 
+
 response = requests.get(
     GTFS_RT_URL,
     timeout=30,
     headers={
-        "User-Agent": "Mozilla/5.0"
+        "User-Agent": "R15-Tracker/1.0"
     }
 )
 
+
 response.raise_for_status()
+
 
 print(
     "Feed descarregat:",
@@ -74,10 +90,12 @@ except Exception as error:
 
 print("JSON carregat correctament.")
 
+
 entities = feed.get(
     "entity",
     []
 )
+
 
 print(
     "Entitats:",
@@ -86,16 +104,14 @@ print(
 
 
 # ============================================================
-# CONSTRUIR DICCIONARI DE TRIPS REALTIME
+# CONSTRUIR DICCIONARI DE TRAINS REALTIME
 # ============================================================
 
 realtime_trips = {}
 
+
 for entity in entities:
 
-    # IMPORTANT:
-    # Renfe utilitza camelCase:
-    # tripUpdate
     trip_update = entity.get(
         "tripUpdate"
     )
@@ -110,8 +126,6 @@ for entity in entities:
     )
 
 
-    # Renfe:
-    # tripId
     trip_id = str(
         trip.get(
             "tripId",
@@ -136,58 +150,84 @@ print(
 
 
 # ============================================================
-# FUNCIONS
+# FUNCIONS DE TEMPS
 # ============================================================
 
-def timestamp_a_minuts(timestamp):
+def timestamp_a_datetime(timestamp):
+
+    """
+    Converteix timestamp Unix a datetime
+    en hora local d'Espanya.
+    """
 
     if timestamp is None:
         return None
 
+
     try:
 
-        timestamp = int(
-            timestamp
+        timestamp = int(timestamp)
+
+
+        dt_utc = datetime.fromtimestamp(
+            timestamp,
+            tz=timezone.utc
         )
 
-        dt = datetime.fromtimestamp(
-            timestamp
+
+        return dt_utc.astimezone(
+            MADRID_TZ
         )
 
-        return (
-            dt.hour * 60
-            + dt.minute
-        )
 
     except Exception:
 
         return None
+
+
+def timestamp_a_minuts(timestamp):
+
+    """
+    Converteix timestamp Unix a minuts
+    del dia en hora d'Espanya.
+    """
+
+    dt = timestamp_a_datetime(
+        timestamp
+    )
+
+
+    if dt is None:
+        return None
+
+
+    return (
+        dt.hour * 60
+        + dt.minute
+    )
 
 
 def timestamp_a_iso(timestamp):
 
-    if timestamp is None:
+    """
+    Converteix timestamp Unix a ISO
+    amb zona horària d'Espanya.
+    """
+
+    dt = timestamp_a_datetime(
+        timestamp
+    )
+
+
+    if dt is None:
         return None
 
-    try:
 
-        timestamp = int(
-            timestamp
-        )
-
-        dt = datetime.fromtimestamp(
-            timestamp
-        )
-
-        return dt.isoformat()
-
-    except Exception:
-
-        return None
+    return dt.isoformat()
 
 
 # ============================================================
-# ACTUALITZAR TRENS R15
+# ACTUALITZAR TRENS
 # ============================================================
 
 actualitzats = 0
@@ -211,13 +251,14 @@ for train in dades.get(
         continue
 
 
-    if trip_id not in realtime_trips:
+    trip_update = realtime_trips.get(
+        trip_id
+    )
+
+
+    if trip_update is None:
         continue
 
-
-    trip_update = realtime_trips[
-        trip_id
-    ]
 
     actualitzats += 1
 
@@ -230,7 +271,7 @@ for train in dades.get(
 
 
     # ========================================================
-    # RELACIÓ AMB L'HORARI
+    # INFORMACIÓ GENERAL
     # ========================================================
 
     trip_info = trip_update.get(
@@ -257,10 +298,6 @@ for train in dades.get(
     # PARADES REALTIME
     # ========================================================
 
-    # IMPORTANT:
-    # Renfe utilitza:
-    # stopTimeUpdate
-
     stop_updates = trip_update.get(
         "stopTimeUpdate",
         []
@@ -279,9 +316,9 @@ for train in dades.get(
     )
 
 
-    # --------------------------------------------------------
+    # ========================================================
     # INDEXAR LES NOSTRES PARADES
-    # --------------------------------------------------------
+    # ========================================================
 
     stops_by_id = {}
 
@@ -313,13 +350,10 @@ for train in dades.get(
 
 
     # ========================================================
-    # PROCESSAR PARADES
+    # PROCESSAR CADA ACTUALITZACIÓ
     # ========================================================
 
     for stop_update in stop_updates:
-
-        # Renfe:
-        # stopId
 
         stop_id = str(
             stop_update.get(
@@ -344,8 +378,8 @@ for train in dades.get(
 
 
         # ----------------------------------------------------
-        # SI NO TROBEM LA PARADA,
-        # INTENTEM STOP SEQUENCE
+        # SI NO TROBEM PER ID,
+        # BUSCAR PER SEQÜÈNCIA
         # ----------------------------------------------------
 
         stop_sequence = (
@@ -366,11 +400,13 @@ for train in dades.get(
                     stop_sequence
                 )
 
+
                 stop = (
                     stops_by_sequence.get(
                         sequence - 1
                     )
                 )
+
 
             except Exception:
 
@@ -378,7 +414,7 @@ for train in dades.get(
 
 
         # ----------------------------------------------------
-        # PARADA NO TROBADA
+        # NO TROBADA
         # ----------------------------------------------------
 
         if stop is None:
@@ -405,22 +441,26 @@ for train in dades.get(
         )
 
 
+        # Preferim arrival si existeix.
+        # Si no, departure.
+
         event = None
         event_type = None
 
 
-        if arrival:
+        if arrival is not None:
 
             event = arrival
             event_type = "arrival"
 
-        elif departure:
+
+        elif departure is not None:
 
             event = departure
             event_type = "departure"
 
 
-        if not event:
+        if event is None:
 
             continue
 
@@ -456,7 +496,7 @@ for train in dades.get(
 
 
         # ====================================================
-        # HORA REAL
+        # HORA REAL / PREVISTA DEL FEED
         # ====================================================
 
         timestamp = event.get(
@@ -479,8 +519,18 @@ for train in dades.get(
 
 
         # ====================================================
-        # SI NO HI HA TIMESTAMP
-        # FEM TEÒRICA + RETARD
+        # IMPORTANT:
+        #
+        # Si Renfe dona "time", NO SUMEM el delay.
+        #
+        # El timestamp ja representa l'hora
+        # de l'esdeveniment.
+        #
+        # Només fem:
+        #
+        # horari + retard
+        #
+        # si NO tenim timestamp.
         # ====================================================
 
         if actual_minutes is None:
@@ -505,7 +555,7 @@ for train in dades.get(
 
 
         # ====================================================
-        # GUARDAR
+        # GUARDAR DADES
         # ====================================================
 
         if actual_minutes is not None:
@@ -537,6 +587,16 @@ for train in dades.get(
         ] = event_type
 
 
+        # Guardem també el moment en què
+        # nosaltres hem capturat aquesta dada.
+
+        stop[
+            "realtime_captured_at"
+        ] = datetime.now(
+            MADRID_TZ
+        ).isoformat()
+
+
         parades_actualitzades += 1
 
 
@@ -547,10 +607,18 @@ for train in dades.get(
                 ""
             ),
             "→",
-            actual_minutes,
-            "min",
+            (
+                f"{actual_minutes // 60:02d}:"
+                f"{actual_minutes % 60:02d}"
+                if actual_minutes is not None
+                else "--:--"
+            ),
             "retard:",
-            delay_minutes,
+            (
+                f"{delay_minutes:+d}"
+                if delay_minutes != 0
+                else "0"
+            ),
             "min"
         )
 
@@ -592,7 +660,7 @@ for train in dades.get(
 
 
     # ========================================================
-    # MARCAR TREN COM A INICIAT
+    # EL TREN TÉ INFORMACIÓ REALTIME
     # ========================================================
 
     train[
@@ -606,11 +674,9 @@ for train in dades.get(
 
 dades[
     "realtime_updated_at"
-] = (
-    datetime.now()
-    .astimezone()
-    .isoformat()
-)
+] = datetime.now(
+    MADRID_TZ
+).isoformat()
 
 
 dades[
@@ -619,7 +685,7 @@ dades[
 
 
 # ============================================================
-# GUARDAR JSON
+# GUARDAR
 # ============================================================
 
 with open(
@@ -637,7 +703,7 @@ with open(
 
 
 # ============================================================
-# RESULTAT
+# RESUM
 # ============================================================
 
 print()
