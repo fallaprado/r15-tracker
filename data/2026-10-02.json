@@ -1031,7 +1031,12 @@
           "stop_id": "71502",
           "scheduled_arrival": 662,
           "scheduled_departure": 662,
-          "actual_minutes": null
+          "actual_minutes": 724,
+          "delay_seconds": 3720,
+          "delay_minutes": 62,
+          "actual_time": "2026-10-02T12:04:08+02:00",
+          "realtime_event": "arrival",
+          "realtime_captured_at": "2026-10-02T12:00:23.146756+02:00"
         },
         {
           "station": "Tarragona",
@@ -1148,7 +1153,7 @@
           "delay_minutes": 7,
           "actual_time": "2026-10-02T12:12:14+02:00",
           "realtime_event": "arrival",
-          "realtime_captured_at": "2026-10-02T11:58:20.349105+02:00"
+          "realtime_captured_at": "2026-10-02T12:00:23.146801+02:00"
         },
         {
           "station": "Torredembarra",
@@ -3176,6 +3181,6 @@
       ]
     }
   ],
-  "realtime_updated_at": "2026-10-02T11:58:20.349122+02:00",
+  "realtime_updated_at": "2026-10-02T12:00:23.146819+02:00",
   "realtime_source": "https://gtfsrt.renfe.com/trip_updates.json"
 }
