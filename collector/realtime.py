@@ -7,6 +7,8 @@ from zoneinfo import ZoneInfo
 GTFS_RT_URL = "https://gtfsrt.renfe.com/trip_updates.json"
 DATA_DIR = "data"
 
+MADRID_TZ = ZoneInfo("Europe/Madrid")
+
 avui = date.today()
 
 fitxer = os.path.join(
@@ -14,44 +16,28 @@ fitxer = os.path.join(
     f"{avui.isoformat()}.json"
 )
 
-MADRID_TZ = ZoneInfo("Europe/Madrid")
-
-
 print("==========================================")
 print("R15 REALTIME")
 print("Data:", avui)
 print("==========================================")
 
-
-# ============================================================
-# CARREGAR FITXER DEL DIA
-# ============================================================
-
 if not os.path.exists(fitxer):
+    raise Exception(f"No existeix el fitxer {fitxer}")
 
-    raise Exception(
-        f"No existeix el fitxer {fitxer}"
-    )
+# -------------------------------------------------
+# CARREGAR JSON DEL DIA
+# -------------------------------------------------
 
+with open(fitxer, "r", encoding="utf-8") as f:
+    dades = json.load(f)
 
 print("Carregant:", fitxer)
 
-
-with open(
-    fitxer,
-    "r",
-    encoding="utf-8"
-) as f:
-
-    dades = json.load(f)
-
-
-# ============================================================
-# DESCARREGAR FEED RENFE
-# ============================================================
+# -------------------------------------------------
+# DESCARREGAR GTFS-RT RENFE
+# -------------------------------------------------
 
 print("Descarregant GTFS-RT de Renfe...")
-
 
 response = requests.get(
     GTFS_RT_URL,
@@ -61,145 +47,86 @@ response = requests.get(
     }
 )
 
-
 response.raise_for_status()
 
+feed = response.json()
 
-print(
-    "Feed descarregat:",
-    len(response.content),
-    "bytes"
-)
+entities = feed.get("entity", [])
 
+print("Entitats:", len(entities))
 
-try:
-
-    feed = response.json()
-
-except Exception as error:
-
-    print(
-        "Resposta rebuda:",
-        response.text[:500]
-    )
-
-    raise Exception(
-        "El feed de Renfe no és un JSON vàlid"
-    ) from error
-
-
-print("JSON carregat correctament.")
-
-
-entities = feed.get(
-    "entity",
-    []
-)
-
-
-print(
-    "Entitats:",
-    len(entities)
-)
-
-
-# ============================================================
-# CONSTRUIR DICCIONARI DE TRAINS REALTIME
-# ============================================================
+# -------------------------------------------------
+# CREAR DICCIONARI DE TRIPS EN TEMPS REAL
+# -------------------------------------------------
 
 realtime_trips = {}
 
-
 for entity in entities:
 
-    trip_update = entity.get(
-        "tripUpdate"
-    )
+    trip_update = entity.get("tripUpdate")
 
     if not trip_update:
         continue
 
-
-    trip = trip_update.get(
-        "trip",
-        {}
-    )
-
+    trip = trip_update.get("trip", {})
 
     trip_id = str(
-        trip.get(
-            "tripId",
-            ""
-        )
+        trip.get("tripId", "")
     ).strip()
-
 
     if not trip_id:
         continue
 
-
-    realtime_trips[
-        trip_id
-    ] = trip_update
-
+    realtime_trips[trip_id] = trip_update
 
 print(
     "Trips amb informació:",
     len(realtime_trips)
 )
 
-
-# ============================================================
-# FUNCIONS DE TEMPS
-# ============================================================
+# -------------------------------------------------
+# FUNCIONS
+# -------------------------------------------------
 
 def timestamp_a_datetime(timestamp):
-
-    """
-    Converteix timestamp Unix a datetime
-    en hora local d'Espanya.
-    """
 
     if timestamp is None:
         return None
 
-
     try:
 
         timestamp = int(timestamp)
-
 
         dt_utc = datetime.fromtimestamp(
             timestamp,
             tz=timezone.utc
         )
 
-
         return dt_utc.astimezone(
             MADRID_TZ
         )
-
 
     except Exception:
 
         return None
 
 
-def timestamp_a_minuts(timestamp):
+def timestamp_a_iso(timestamp):
 
-    """
-    Converteix timestamp Unix a minuts
-    del dia en hora d'Espanya.
-    """
-
-    dt = timestamp_a_datetime(
-        timestamp
-    )
-
+    dt = timestamp_a_datetime(timestamp)
 
     if dt is None:
         return None
 
+    return dt.isoformat()
+
+
+def timestamp_a_minuts(timestamp):
+
+    dt = timestamp_a_datetime(timestamp)
+
+    if dt is None:
+        return None
 
     return (
         dt.hour * 60
@@ -207,61 +134,38 @@ def timestamp_a_minuts(timestamp):
     )
 
 
-def timestamp_a_iso(timestamp):
+def ara_minuts():
 
-    """
-    Converteix timestamp Unix a ISO
-    amb zona horària d'Espanya.
-    """
+    ara = datetime.now(MADRID_TZ)
 
-    dt = timestamp_a_datetime(
-        timestamp
+    return (
+        ara.hour * 60
+        + ara.minute
     )
 
 
-    if dt is None:
-        return None
-
-
-    return dt.isoformat()
-
-
-# ============================================================
+# -------------------------------------------------
 # ACTUALITZAR TRENS
-# ============================================================
+# -------------------------------------------------
 
 actualitzats = 0
 parades_actualitzades = 0
 
-
-for train in dades.get(
-    "trains",
-    []
-):
+for train in dades.get("trains", []):
 
     trip_id = str(
-        train.get(
-            "train_id",
-            ""
-        )
+        train.get("train_id", "")
     ).strip()
-
 
     if not trip_id:
         continue
 
-
-    trip_update = realtime_trips.get(
-        trip_id
-    )
-
+    trip_update = realtime_trips.get(trip_id)
 
     if trip_update is None:
         continue
 
-
     actualitzats += 1
-
 
     print()
     print(
@@ -269,23 +173,18 @@ for train in dades.get(
         trip_id
     )
 
-
-    # ========================================================
-    # INFORMACIÓ GENERAL
-    # ========================================================
+    # -------------------------------------------------
+    # INFORMACIÓ DEL TRIP
+    # -------------------------------------------------
 
     trip_info = trip_update.get(
         "trip",
         {}
     )
 
-
-    schedule_relationship = (
-        trip_info.get(
-            "scheduleRelationship"
-        )
+    schedule_relationship = trip_info.get(
+        "scheduleRelationship"
     )
-
 
     if schedule_relationship:
 
@@ -293,41 +192,83 @@ for train in dades.get(
             "schedule_relationship"
         ] = schedule_relationship
 
+    # -------------------------------------------------
+    # TIMESTAMP DE L'ACTUALITZACIÓ
+    # -------------------------------------------------
 
-    # ========================================================
-    # PARADES REALTIME
-    # ========================================================
+    trip_timestamp = trip_update.get(
+        "timestamp"
+    )
+
+    if trip_timestamp is not None:
+
+        train[
+            "realtime_timestamp"
+        ] = int(trip_timestamp)
+
+        train[
+            "realtime_updated_at"
+        ] = timestamp_a_iso(
+            trip_timestamp
+        )
+
+    # -------------------------------------------------
+    # RETARD GENERAL DEL TREN
+    # -------------------------------------------------
+
+    trip_delay = trip_update.get(
+        "delay"
+    )
+
+    if trip_delay is not None:
+
+        try:
+            trip_delay = int(trip_delay)
+        except Exception:
+            trip_delay = None
+
+    train[
+        "realtime_trip_delay_seconds"
+    ] = trip_delay
+
+    if trip_delay is not None:
+
+        train[
+            "realtime_trip_delay_minutes"
+        ] = round(
+            trip_delay / 60
+        )
+
+    # -------------------------------------------------
+    # STOP TIME UPDATES
+    # -------------------------------------------------
 
     stop_updates = trip_update.get(
         "stopTimeUpdate",
         []
     )
 
-
     print(
         "Actualitzacions de parades:",
         len(stop_updates)
     )
-
 
     stops = train.get(
         "stops",
         []
     )
 
+    # Ordenar per seqüència
+    stops.sort(
+        key=lambda x: int(
+            x.get("sequence", 0)
+        )
+    )
 
-    # ========================================================
-    # INDEXAR LES NOSTRES PARADES
-    # ========================================================
-
+    # Índex per stop_id
     stops_by_id = {}
 
-    stops_by_sequence = {}
-
-
-    for index, stop in enumerate(
-        stops
-    ):
+    for index, stop in enumerate(stops):
 
         stop_id = str(
             stop.get(
@@ -336,22 +277,17 @@ for train in dades.get(
             )
         ).strip()
 
-
         if stop_id:
 
             stops_by_id[
                 stop_id
-            ] = stop
+            ] = index
 
+    # -------------------------------------------------
+    # CONVERTIR LES ACTUALITZACIONS
+    # -------------------------------------------------
 
-        stops_by_sequence[
-            index
-        ] = stop
-
-
-    # ========================================================
-    # PROCESSAR CADA ACTUALITZACIÓ
-    # ========================================================
+    updates_by_index = {}
 
     for stop_update in stop_updates:
 
@@ -362,183 +298,292 @@ for train in dades.get(
             )
         ).strip()
 
+        index = None
 
-        stop = None
+        if stop_id in stops_by_id:
 
-
-        # ----------------------------------------------------
-        # BUSCAR PER STOP ID
-        # ----------------------------------------------------
-
-        if stop_id:
-
-            stop = stops_by_id.get(
+            index = stops_by_id[
                 stop_id
+            ]
+
+        else:
+
+            stop_sequence = (
+                stop_update.get(
+                    "stopSequence"
+                )
             )
 
+            if stop_sequence is not None:
 
-        # ----------------------------------------------------
-        # SI NO TROBEM PER ID,
-        # BUSCAR PER SEQÜÈNCIA
-        # ----------------------------------------------------
+                try:
 
-        stop_sequence = (
-            stop_update.get(
-                "stopSequence"
-            )
+                    sequence = int(
+                        stop_sequence
+                    )
+
+                    # stop_sequence GTFS comença habitualment en 1
+                    index = sequence - 1
+
+                except Exception:
+
+                    index = None
+
+        if index is None:
+            continue
+
+        updates_by_index[
+            index
+        ] = stop_update
+
+    # -------------------------------------------------
+    # PROPAGAR INFORMACIÓ
+    # -------------------------------------------------
+
+    retard_actual = None
+
+    for index, stop in enumerate(stops):
+
+        stop_update = updates_by_index.get(
+            index
         )
 
+        # ---------------------------------------------
+        # HI HA UNA ACTUALITZACIÓ ESPECÍFICA
+        # ---------------------------------------------
 
-        if (
-            stop is None
-            and stop_sequence is not None
-        ):
+        if stop_update is not None:
 
-            try:
+            arrival = stop_update.get(
+                "arrival"
+            )
 
-                sequence = int(
-                    stop_sequence
+            departure = stop_update.get(
+                "departure"
+            )
+
+            event = None
+            event_type = None
+
+            # Per una estació intermèdia preferim arribada.
+            # Si no existeix, utilitzem sortida.
+            if arrival is not None:
+
+                event = arrival
+                event_type = "arrival"
+
+            elif departure is not None:
+
+                event = departure
+                event_type = "departure"
+
+            if event is not None:
+
+                delay_seconds = event.get(
+                    "delay"
                 )
 
+                if delay_seconds is not None:
 
-                stop = (
-                    stops_by_sequence.get(
-                        sequence - 1
+                    try:
+
+                        delay_seconds = int(
+                            delay_seconds
+                        )
+
+                    except Exception:
+
+                        delay_seconds = 0
+
+                else:
+
+                    delay_seconds = None
+
+                timestamp = event.get(
+                    "time"
+                )
+
+                actual_minutes = (
+                    timestamp_a_minuts(
+                        timestamp
                     )
                 )
 
+                # -----------------------------------------
+                # SI RENFE DONA TIME, ÉS LA FONT PRINCIPAL
+                # -----------------------------------------
 
-            except Exception:
+                if actual_minutes is not None:
 
-                stop = None
+                    stop[
+                        "actual_minutes"
+                    ] = actual_minutes
 
+                    stop[
+                        "actual_time"
+                    ] = timestamp_a_iso(
+                        timestamp
+                    )
 
-        # ----------------------------------------------------
-        # NO TROBADA
-        # ----------------------------------------------------
+                    # Determinar si és una hora passada
+                    # o una predicció futura.
+                    if timestamp_a_datetime(
+                        timestamp
+                    ) is not None:
 
-        if stop is None:
+                        event_dt = (
+                            timestamp_a_datetime(
+                                timestamp
+                            )
+                        )
 
-            print(
-                "  ⚠️ Parada no trobada:",
-                stop_id
-            )
+                        ara = datetime.now(
+                            MADRID_TZ
+                        )
 
-            continue
+                        if event_dt <= ara:
 
+                            stop[
+                                "realtime_type"
+                            ] = "real"
 
-        # ====================================================
-        # ARRIBADA / SORTIDA
-        # ====================================================
+                        else:
 
-        arrival = stop_update.get(
-            "arrival"
-        )
+                            stop[
+                                "realtime_type"
+                            ] = "estimated"
 
+                # -----------------------------------------
+                # SI NO HI HA TIME, UTILITZEM DELAY
+                # -----------------------------------------
 
-        departure = stop_update.get(
-            "departure"
-        )
+                elif delay_seconds is not None:
 
+                    scheduled = stop.get(
+                        "scheduled_arrival"
+                    )
 
-        # Preferim arrival si existeix.
-        # Si no, departure.
+                    if scheduled is None:
 
-        event = None
-        event_type = None
+                        scheduled = stop.get(
+                            "scheduled_departure"
+                        )
 
+                    if scheduled is not None:
 
-        if arrival is not None:
+                        try:
 
-            event = arrival
-            event_type = "arrival"
+                            actual_minutes = (
+                                int(scheduled)
+                                + round(
+                                    delay_seconds / 60
+                                )
+                            )
 
+                            stop[
+                                "actual_minutes"
+                            ] = actual_minutes
 
-        elif departure is not None:
+                            stop[
+                                "realtime_type"
+                            ] = "estimated"
 
-            event = departure
-            event_type = "departure"
+                        except Exception:
 
+                            pass
 
-        if event is None:
+                # Guardar retard
+                if delay_seconds is not None:
 
-            continue
+                    retard_actual = (
+                        delay_seconds
+                    )
 
+                    stop[
+                        "delay_seconds"
+                    ] = delay_seconds
 
-        # ====================================================
-        # RETARD
-        # ====================================================
+                    stop[
+                        "delay_minutes"
+                    ] = round(
+                        delay_seconds / 60
+                    )
 
-        delay_seconds = event.get(
-            "delay"
-        )
+                stop[
+                    "realtime_event"
+                ] = event_type
 
+                if trip_timestamp is not None:
 
-        if delay_seconds is None:
+                    stop[
+                        "realtime_captured_at"
+                    ] = timestamp_a_iso(
+                        trip_timestamp
+                    )
 
-            delay_seconds = 0
+                else:
 
+                    stop[
+                        "realtime_captured_at"
+                    ] = datetime.now(
+                        MADRID_TZ
+                    ).isoformat()
 
-        try:
+                parades_actualitzades += 1
 
-            delay_seconds = int(
-                delay_seconds
-            )
+                actual = stop.get(
+                    "actual_minutes"
+                )
 
-        except Exception:
+                if actual is not None:
 
-            delay_seconds = 0
+                    hora = (
+                        f"{actual // 60:02d}:"
+                        f"{actual % 60:02d}"
+                    )
 
+                else:
 
-        delay_minutes = round(
-            delay_seconds / 60
-        )
+                    hora = "--:--"
 
+                retard = stop.get(
+                    "delay_minutes",
+                    0
+                )
 
-        # ====================================================
-        # HORA REAL / PREVISTA DEL FEED
-        # ====================================================
+                print(
+                    "  ✓",
+                    stop.get(
+                        "station",
+                        ""
+                    ),
+                    "→",
+                    hora,
+                    "retard:",
+                    f"{retard:+d}",
+                    "min"
+                )
 
-        timestamp = event.get(
-            "time"
-        )
-
-
-        actual_minutes = (
-            timestamp_a_minuts(
-                timestamp
-            )
-        )
-
-
-        actual_iso = (
-            timestamp_a_iso(
-                timestamp
-            )
-        )
-
-
-        # ====================================================
-        # IMPORTANT:
+        # ---------------------------------------------
+        # NO HI HA ACTUALITZACIÓ ESPECÍFICA
+        # ---------------------------------------------
         #
-        # Si Renfe dona "time", NO SUMEM el delay.
-        #
-        # El timestamp ja representa l'hora
-        # de l'esdeveniment.
-        #
-        # Només fem:
-        #
-        # horari + retard
-        #
-        # si NO tenim timestamp.
-        # ====================================================
+        # GTFS-RT estableix que el retard d'una
+        # actualització s'aplica a les parades següents
+        # fins que apareix una nova actualització.
+        # ---------------------------------------------
 
-        if actual_minutes is None:
+        elif retard_actual is not None:
 
             scheduled = stop.get(
                 "scheduled_arrival"
             )
 
+            if scheduled is None:
+
+                scheduled = stop.get(
+                    "scheduled_departure"
+                )
 
             if scheduled is not None:
 
@@ -546,131 +591,84 @@ for train in dades.get(
 
                     actual_minutes = (
                         int(scheduled)
-                        + delay_minutes
+                        + round(
+                            retard_actual / 60
+                        )
                     )
+
+                    stop[
+                        "actual_minutes"
+                    ] = actual_minutes
+
+                    stop[
+                        "delay_seconds"
+                    ] = retard_actual
+
+                    stop[
+                        "delay_minutes"
+                    ] = round(
+                        retard_actual / 60
+                    )
+
+                    stop[
+                        "realtime_type"
+                    ] = "estimated_propagated"
+
+                    stop[
+                        "realtime_event"
+                    ] = "propagated"
 
                 except Exception:
 
-                    actual_minutes = None
+                    pass
 
+        # ---------------------------------------------
+        # SI HI HA UNA NOVA ACTUALITZACIÓ
+        # EL RETARD JA S'HA ACTUALITZAT A DALT
+        # ---------------------------------------------
 
-        # ====================================================
-        # GUARDAR DADES
-        # ====================================================
-
-        if actual_minutes is not None:
-
-            stop[
-                "actual_minutes"
-            ] = actual_minutes
-
-
-        stop[
-            "delay_seconds"
-        ] = delay_seconds
-
-
-        stop[
-            "delay_minutes"
-        ] = delay_minutes
-
-
-        if actual_iso is not None:
-
-            stop[
-                "actual_time"
-            ] = actual_iso
-
-
-        stop[
-            "realtime_event"
-        ] = event_type
-
-
-        # Guardem també el moment en què
-        # nosaltres hem capturat aquesta dada.
-
-        stop[
-            "realtime_captured_at"
-        ] = datetime.now(
-            MADRID_TZ
-        ).isoformat()
-
-
-        parades_actualitzades += 1
-
-
-        print(
-            "  ✓",
-            stop.get(
-                "station",
-                ""
-            ),
-            "→",
-            (
-                f"{actual_minutes // 60:02d}:"
-                f"{actual_minutes % 60:02d}"
-                if actual_minutes is not None
-                else "--:--"
-            ),
-            "retard:",
-            (
-                f"{delay_minutes:+d}"
-                if delay_minutes != 0
-                else "0"
-            ),
-            "min"
-        )
-
-
-    # ========================================================
+    # -------------------------------------------------
     # RETARD FINAL
-    # ========================================================
+    # -------------------------------------------------
 
     if stops:
 
         ultima = stops[-1]
 
-
-        scheduled_final = (
-            ultima.get(
-                "scheduled_arrival"
-            )
+        scheduled_final = ultima.get(
+            "scheduled_arrival"
         )
 
-
-        actual_final = (
-            ultima.get(
-                "actual_minutes"
-            )
+        actual_final = ultima.get(
+            "actual_minutes"
         )
-
 
         if (
             scheduled_final is not None
             and actual_final is not None
         ):
 
-            train[
-                "final_delay_minutes"
-            ] = (
-                actual_final
-                - scheduled_final
-            )
+            try:
 
+                train[
+                    "final_delay_minutes"
+                ] = (
+                    int(actual_final)
+                    - int(scheduled_final)
+                )
 
-    # ========================================================
-    # EL TREN TÉ INFORMACIÓ REALTIME
-    # ========================================================
+            except Exception:
 
+                pass
+
+    # El tren té informació RT
     train[
-        "started"
+        "has_realtime"
     ] = True
 
-
-# ============================================================
-# METADADES
-# ============================================================
+# -------------------------------------------------
+# INFORMACIÓ GENERAL
+# -------------------------------------------------
 
 dades[
     "realtime_updated_at"
@@ -678,15 +676,13 @@ dades[
     MADRID_TZ
 ).isoformat()
 
-
 dades[
     "realtime_source"
 ] = GTFS_RT_URL
 
-
-# ============================================================
+# -------------------------------------------------
 # GUARDAR
-# ============================================================
+# -------------------------------------------------
 
 with open(
     fitxer,
@@ -701,11 +697,6 @@ with open(
         indent=2
     )
 
-
-# ============================================================
-# RESUM
-# ============================================================
-
 print()
 print("==========================================")
 print(
@@ -713,7 +704,7 @@ print(
     actualitzats
 )
 print(
-    "Parades actualitzades:",
+    "Parades amb actualització directa:",
     parades_actualitzades
 )
 print(
