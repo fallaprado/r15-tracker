@@ -1,6 +1,7 @@
 import requests
 import json
 import os
+import re
 from datetime import datetime, date, timezone
 from zoneinfo import ZoneInfo
 
@@ -9,11 +10,24 @@ DATA_DIR = "data"
 MADRID_TZ = ZoneInfo("Europe/Madrid")
 
 
+def netejar_id(id_val):
+    """Neteja zeros a l'esquerra i caràcters especials per facilitar la cerca d'IDs."""
+    if not id_val:
+        return ""
+    s = str(id_val).strip()
+    # Mantenim només els dígits principals o treiem zeros inicials
+    digits = re.sub(r"\D", "", s).lstrip("0")
+    return digits if digits else s.lstrip("0")
+
+
 def timestamp_a_minuts(ts):
     if ts is None:
         return None
     try:
-        dt = datetime.fromtimestamp(int(ts), tz=timezone.utc).astimezone(MADRID_TZ)
+        ts = int(ts)
+        if ts > 2000000000:  # Si ve en mil·lissegons
+            ts = ts // 1000
+        dt = datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(MADRID_TZ)
         return dt.hour * 60 + dt.minute
     except Exception:
         return None
@@ -24,13 +38,13 @@ def actualitzar_realtime():
     fitxer_path = os.path.join(DATA_DIR, f"{avui}.json")
 
     if not os.path.exists(fitxer_path):
-        print(f"⚠️ No s'ha trobat el fitxer base {fitxer_path}. Executa primer collect.py.")
+        print(f"⚠️ Fitxer base {fitxer_path} no trobat. Executa primer collect.py.")
         return
 
     with open(fitxer_path, "r", encoding="utf-8") as f:
         dades = json.load(f)
 
-    print("Descarregant GTFS-RT de Renfe...")
+    print(f"Descarregant GTFS-RT de Renfe per actualitzar {fitxer_path}...")
     try:
         resp = requests.get(
             GTFS_RT_URL,
@@ -40,84 +54,105 @@ def actualitzar_realtime():
         resp.raise_for_status()
         feed = resp.json()
     except Exception as e:
-        print(f"❌ Error descarregant GTFS-RT: {e}")
+        print(f"❌ Error descarregant GTFS-RT de Renfe: {e}")
         return
 
     entities = feed.get("entity", [])
 
-    # Indexar actualitzacions per trip_id
-    updates_by_trip = {}
+    # Indexar actualitzacions per ID netejat
+    updates_by_clean_id = {}
     for entity in entities:
         trip_update = entity.get("tripUpdate")
         if not trip_update:
             continue
-        trip_id = str(trip_update.get("trip", {}).get("tripId", "")).strip()
-        if trip_id:
-            updates_by_trip[trip_id] = trip_update
-
-    print(f"Trips trobats al GTFS-RT: {len(updates_by_trip)}")
+        raw_trip_id = str(trip_update.get("trip", {}).get("tripId", "")).strip()
+        clean_id = netejar_id(raw_trip_id)
+        if clean_id:
+            updates_by_clean_id[clean_id] = trip_update
 
     trens_actualitzats = 0
 
     for train in dades.get("trains", []):
-        train_id = str(train.get("train_id", "")).strip()
-        update = updates_by_trip.get(train_id)
+        raw_train_id = str(train.get("train_id", "")).strip()
+        clean_train_id = netejar_id(raw_train_id)
+
+        # Buscar coincidència flexible d'ID
+        update = updates_by_clean_id.get(clean_train_id)
+
+        if not update:
+            # Provar de cercar si l'ID està contingut
+            for k, v in updates_by_clean_id.items():
+                if k and (k in clean_train_id or clean_train_id in k):
+                    update = v
+                    break
 
         if not update:
             continue
 
         stop_updates = update.get("stopTimeUpdate", [])
 
-        # Mapa per trobar la parada per stop_id o stop_sequence
-        updates_by_stop_id = {}
+        # Indexar stop updates per seqüència i per ID d'estació
         updates_by_seq = {}
+        updates_by_stop_id = {}
 
         for stu in stop_updates:
-            sid = str(stu.get("stopId", "")).strip()
             seq = stu.get("stopSequence")
-            if sid:
-                updates_by_stop_id[sid] = stu
+            sid = str(stu.get("stopId", "")).strip()
+            clean_sid = netejar_id(sid)
+
             if seq is not None:
-                updates_by_seq[seq] = stu
+                updates_by_seq[int(seq)] = stu
+            if clean_sid:
+                updates_by_stop_id[clean_sid] = stu
 
         max_delay = 0
-        has_started = False
+        has_updates = False
 
         for stop in train.get("stops", []):
-            sid = str(stop.get("stop_id", "")).strip()
             seq = stop.get("sequence")
+            sid = str(stop.get("stop_id", "")).strip()
+            clean_sid = netejar_id(sid)
 
-            stu = updates_by_stop_id.get(sid) or updates_by_seq.get(seq)
+            stu = (updates_by_seq.get(seq) if seq is not None else None) or updates_by_stop_id.get(clean_sid)
+
             if not stu:
                 continue
 
-            arr = stu.get("arrival", {})
-            dep = stu.get("departure", {})
+            arr = stu.get("arrival", {}) or {}
+            dep = stu.get("departure", {}) or {}
 
-            # Agafar timestamp de sortida o arribada
             real_ts = dep.get("time") or arr.get("time")
             delay_sec = dep.get("delay") if dep.get("delay") is not None else arr.get("delay")
 
-            if real_ts:
-                stop["actual_minutes"] = timestamp_a_minuts(real_ts)
-                has_started = True
+            scheduled_time = stop.get("scheduled_departure") or stop.get("scheduled_arrival")
 
+            # 1. Calcular retard en minuts
+            delay_min = None
             if delay_sec is not None:
                 delay_min = round(delay_sec / 60)
                 stop["delay_minutes"] = delay_min
                 if delay_min > max_delay:
                     max_delay = delay_min
 
-        if has_started:
+            # 2. Calcular minuts reals
+            if real_ts:
+                stop["actual_minutes"] = timestamp_a_minuts(real_ts)
+                has_updates = True
+            elif delay_min is not None and scheduled_time is not None:
+                # Si l'API no envia timestamp Unix, calculem temps real = teòric + retard
+                stop["actual_minutes"] = scheduled_time + delay_min
+                has_updates = True
+
+        if has_updates:
             train["started"] = True
-            train["final_delay_minutes"] = max_delay
+            train["final_delay_minutes"] = max(0, max_delay)
             trens_actualitzats += 1
 
-    # Desar les dades actualitzades
+    # Desat de dades
     with open(fitxer_path, "w", encoding="utf-8") as f:
         json.dump(dades, f, ensure_ascii=False, indent=2)
 
-    print(f"✅ S'han actualitzat {trens_actualitzats} trens a {fitxer_path}")
+    print(f"✅ S'han actualitzat {trens_actualitzats} trens amb dades reals a {fitxer_path}.")
 
 
 if __name__ == "__main__":
