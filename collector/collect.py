@@ -1,169 +1,171 @@
-```python
 import requests
 import zipfile
 import io
 import csv
 import json
 import os
-from datetime import datetime, date, timedelta
-
-GTFS_URL = (
-    "https://ssl.renfe.com/ftransit/"
-    "Fichero_CER_FOMENTO/fomento_transit.zip"
-)
-
-DATA_DIR = "data"
-
-R15_ROUTES = {
-    "51T0124R15",
-    "51T0125R15",
-    "51T0126R15",
-    "51T0127R15",
-    "51T0128R15",
-    "51T0129R15",
-    "51T0130R15",
-    "51T0131R15",
-    "51T0132R15",
-    "51T0133R15",
-    "51T0134R15",
-    "51T0135R15",
-}
+from collections import defaultdict
+from datetime import date, datetime
 
 
 # ============================================================
-# DATA
+# CONFIGURACIÓ
 # ============================================================
 
-today = date.today()
-today_str = today.isoformat()
+GTFS_API = "https://data.renfe.com/api/3/action/package_show?id=horarios-cercanias"
 
-output_file = os.path.join(
-    DATA_DIR,
-    f"{today_str}.json"
-)
+DATA = date.today()
 
-os.makedirs(
-    DATA_DIR,
-    exist_ok=True
-)
-
-
-print("==========================================")
-print("R15 COLLECTOR")
-print("Data:", today)
-print("==========================================")
+OUTPUT_DIR = "data"
 
 
 # ============================================================
-# DESCARREGAR GTFS
+# DESCARREGAR GTFS OFICIAL RENFE
 # ============================================================
 
-print("Descarregant GTFS de Renfe...")
+def descarregar_gtfs():
 
-response = requests.get(
-    GTFS_URL,
-    timeout=60,
-    headers={
-        "User-Agent": "R15-Tracker/1.0"
-    }
-)
+    print("Descarregant GTFS oficial de Renfe...")
 
-response.raise_for_status()
+    resposta = requests.get(
+        GTFS_API,
+        timeout=60
+    )
 
-print(
-    "Fitxer descarregat:",
-    len(response.content),
-    "bytes"
-)
+    resposta.raise_for_status()
+
+    dades = resposta.json()
+
+    for recurs in dades["result"]["resources"]:
+
+        if recurs.get(
+            "format",
+            ""
+        ).upper() == "GTFS":
+
+            url = recurs["url"]
+
+            print(
+                "URL GTFS:",
+                url
+            )
+
+            resposta = requests.get(
+                url,
+                timeout=120
+            )
+
+            resposta.raise_for_status()
+
+            return zipfile.ZipFile(
+                io.BytesIO(
+                    resposta.content
+                )
+            )
+
+    raise Exception(
+        "No s'ha trobat el recurs GTFS de Renfe"
+    )
 
 
 # ============================================================
-# OBRIR ZIP
+# LLEGIR CSV DEL GTFS
 # ============================================================
 
-zip_file = zipfile.ZipFile(
-    io.BytesIO(response.content)
-)
+def llegir(zip_gtfs, nom):
 
-files = zip_file.namelist()
+    print(
+        "Llegint",
+        nom
+    )
 
-print(
-    "Fitxers GTFS:",
-    len(files)
-)
+    with zip_gtfs.open(nom) as f:
 
-
-# ============================================================
-# FUNCIONS
-# ============================================================
-
-def read_csv(filename):
-    with zip_file.open(filename) as f:
-        text = io.TextIOWrapper(
-            f,
-            encoding="utf-8-sig"
+        lector = csv.DictReader(
+            io.TextIOWrapper(
+                f,
+                encoding="utf-8-sig"
+            )
         )
 
-        return list(
-            csv.DictReader(text)
-        )
+        # Netejar noms de columnes
+        lector.fieldnames = [
+            camp.strip()
+            for camp in lector.fieldnames
+        ]
+
+        resultat = []
+
+        for fila in lector:
+
+            fila_neta = {}
+
+            for clau, valor in fila.items():
+
+                clau_neta = (
+                    clau.strip()
+                )
+
+                if isinstance(
+                    valor,
+                    str
+                ):
+                    valor_neta = (
+                        valor.strip()
+                    )
+                else:
+                    valor_neta = valor
+
+                fila_neta[
+                    clau_neta
+                ] = valor_neta
+
+            resultat.append(
+                fila_neta
+            )
+
+        return resultat
 
 
-def clean(value):
-    if value is None:
+# ============================================================
+# NORMALITZAR ID
+# ============================================================
+
+def normalitzar_id(valor):
+
+    if valor is None:
         return ""
 
-    return str(value).strip()
+    # Eliminem qualsevol espai,
+    # inclosos espais estranys del GTFS.
+    return "".join(
+        str(valor).split()
+    )
 
 
-def minutes_from_gtfs_time(value):
-    if not value:
-        return None
+# ============================================================
+# SERVEI ACTIU
+# ============================================================
 
-    try:
-        parts = value.strip().split(":")
+def servei_actiu(
+    service,
+    data
+):
 
-        if len(parts) != 3:
-            return None
+    inici = date.fromisoformat(
+        service["start_date"]
+    )
 
-        hours = int(parts[0])
-        minutes = int(parts[1])
+    final = date.fromisoformat(
+        service["end_date"]
+    )
 
-        return (
-            hours * 60
-            + minutes
-        )
+    if not (
+        inici <= data <= final
+    ):
+        return False
 
-    except Exception:
-        return None
-
-
-def date_from_gtfs(value):
-    """
-    Converteix YYYYMMDD a date.
-    """
-
-    value = clean(value)
-
-    if not value:
-        return None
-
-    try:
-        return datetime.strptime(
-            value,
-            "%Y%m%d"
-        ).date()
-
-    except Exception:
-        return None
-
-
-def weekday_name(day):
-    """
-    Retorna el nom GTFS del dia de la setmana.
-    """
-
-    names = [
+    dies = [
         "monday",
         "tuesday",
         "wednesday",
@@ -173,651 +175,720 @@ def weekday_name(day):
         "sunday"
     ]
 
-    return names[day.weekday()]
+    dia = dies[
+        data.weekday()
+    ]
 
-
-# ============================================================
-# CARREGAR TAULES
-# ============================================================
-
-print("Carregant routes.txt...")
-routes = read_csv("routes.txt")
-
-print("Carregant trips.txt...")
-trips = read_csv("trips.txt")
-
-print("Carregant stop_times.txt...")
-stop_times = read_csv("stop_times.txt")
-
-print("Carregant stops.txt...")
-stops = read_csv("stops.txt")
-
-print("Carregant calendar.txt...")
-calendar = read_csv("calendar.txt")
-
-calendar_dates = []
-
-if "calendar_dates.txt" in files:
-    print("Carregant calendar_dates.txt...")
-    calendar_dates = read_csv(
-        "calendar_dates.txt"
+    return (
+        service.get(
+            dia,
+            ""
+        ) == "1"
     )
 
 
 # ============================================================
-# INDEXAR STOPS
+# CONVERTIR HORA GTFS A MINUTS
 # ============================================================
 
-stops_by_id = {}
+def hora_a_minuts(hora):
 
-for stop in stops:
-
-    stop_id = clean(
-        stop.get("stop_id")
-    )
-
-    if stop_id:
-        stops_by_id[
-            stop_id
-        ] = stop
-
-
-# ============================================================
-# IDENTIFICAR RUTES R15
-# ============================================================
-
-r15_routes = set()
-
-for route in routes:
-
-    route_id = clean(
-        route.get("route_id")
-    )
-
-    route_short_name = clean(
-        route.get("route_short_name")
-    )
-
-    route_long_name = clean(
-        route.get("route_long_name")
-    )
-
-    text = (
-        route_id
-        + " "
-        + route_short_name
-        + " "
-        + route_long_name
-    ).upper()
-
-    if (
-        "R15" in text
-        or route_id in R15_ROUTES
-    ):
-        r15_routes.add(
-            route_id
-        )
-
-
-print(
-    "Rutes R15:",
-    len(r15_routes)
-)
-
-
-# ============================================================
-# DETERMINAR SERVEIS ACTIUS AVUI
-# ============================================================
-
-weekday = weekday_name(
-    today
-)
-
-active_service_ids = set()
-
-# ------------------------------------------------------------
-# CALENDAR.TXT
-# ------------------------------------------------------------
-
-for service in calendar:
-
-    service_id = clean(
-        service.get("service_id")
-    )
-
-    if not service_id:
-        continue
-
-    start_date = date_from_gtfs(
-        service.get("start_date")
-    )
-
-    end_date = date_from_gtfs(
-        service.get("end_date")
-    )
-
-    if start_date is None or end_date is None:
-        continue
-
-    if not (
-        start_date
-        <= today
-        <= end_date
-    ):
-        continue
-
-    value = clean(
-        service.get(weekday)
-    )
-
-    if value == "1":
-        active_service_ids.add(
-            service_id
-        )
-
-
-# ------------------------------------------------------------
-# CALENDAR_DATES.TXT
-#
-# exception_type:
-#
-# 1 = afegir servei
-# 2 = eliminar servei
-# ------------------------------------------------------------
-
-for exception in calendar_dates:
-
-    service_id = clean(
-        exception.get("service_id")
-    )
-
-    exception_date = date_from_gtfs(
-        exception.get("date")
-    )
-
-    if (
-        not service_id
-        or exception_date != today
-    ):
-        continue
-
-    exception_type = clean(
-        exception.get("exception_type")
-    )
-
-    if exception_type == "1":
-        active_service_ids.add(
-            service_id
-        )
-
-    elif exception_type == "2":
-        active_service_ids.discard(
-            service_id
-        )
-
-
-print(
-    "Serveis actius:",
-    len(active_service_ids)
-)
-
-
-# ============================================================
-# IDENTIFICAR TRIPS R15 DEL DIA
-# ============================================================
-
-r15_trips = []
-
-for trip in trips:
-
-    route_id = clean(
-        trip.get("route_id")
-    )
-
-    if route_id not in r15_routes:
-        continue
-
-    service_id = clean(
-        trip.get("service_id")
-    )
-
-    if service_id not in active_service_ids:
-        continue
-
-    r15_trips.append(
-        trip
-    )
-
-
-print(
-    "Trips R15 del dia:",
-    len(r15_trips)
-)
-
-
-# ============================================================
-# INDEXAR STOP TIMES
-# ============================================================
-
-stop_times_by_trip = {}
-
-for row in stop_times:
-
-    trip_id = clean(
-        row.get("trip_id")
-    )
-
-    if not trip_id:
-        continue
-
-    if trip_id not in stop_times_by_trip:
-        stop_times_by_trip[
-            trip_id
-        ] = []
-
-    stop_times_by_trip[
-        trip_id
-    ].append(
-        row
-    )
-
-
-# ============================================================
-# DETERMINAR SENTIT
-# ============================================================
-
-def determine_direction(
-    trip_stops
-):
-
-    if not trip_stops:
+    if not hora:
         return None
 
-    first_stop_id = clean(
-        trip_stops[0].get(
-            "stop_id"
-        )
-    )
+    try:
 
-    last_stop_id = clean(
-        trip_stops[-1].get(
-            "stop_id"
-        )
-    )
+        parts = hora.split(":")
 
-    first_stop = stops_by_id.get(
-        first_stop_id,
-        {}
-    )
+        h = int(parts[0])
+        m = int(parts[1])
 
-    last_stop = stops_by_id.get(
-        last_stop_id,
-        {}
-    )
+        return h * 60 + m
 
-    first_name = (
-        first_stop.get(
-            "stop_name",
-            ""
-        )
-        or ""
-    ).lower()
+    except Exception:
 
-    last_name = (
-        last_stop.get(
-            "stop_name",
-            ""
-        )
-        or ""
-    ).lower()
-
-    # Barcelona → Reus
-
-    if (
-        "barcelona" in first_name
-        and "reus" in last_name
-    ):
-        return "BAR_REUS"
-
-    # Reus → Barcelona
-
-    if (
-        "reus" in first_name
-        and "barcelona" in last_name
-    ):
-        return "REUS_BAR"
-
-    # Fallback
-
-    if "reus" in last_name:
-        return "BAR_REUS"
-
-    if "reus" in first_name:
-        return "REUS_BAR"
-
-    return None
+        return None
 
 
 # ============================================================
-# CREAR CIRCULACIONS
+# HORA GTFS A ISO
 # ============================================================
 
-trains = []
+def hora_a_iso(
+    data,
+    hora
+):
 
-stop_times_r15_count = 0
-
-
-for trip in r15_trips:
-
-    trip_id = clean(
-        trip.get("trip_id")
+    minuts = hora_a_minuts(
+        hora
     )
 
-    if not trip_id:
-        continue
+    if minuts is None:
+        return None
 
-    trip_stop_times = (
-        stop_times_by_trip.get(
-            trip_id,
-            []
+    dia_extra = minuts // (
+        24 * 60
+    )
+
+    minuts_dia = minuts % (
+        24 * 60
+    )
+
+    h = minuts_dia // 60
+    m = minuts_dia % 60
+
+    from datetime import timedelta
+
+    data_real = (
+        data +
+        timedelta(
+            days=dia_extra
         )
     )
 
-    if not trip_stop_times:
-        continue
+    return (
+        f"{data_real.isoformat()}"
+        f"T{h:02d}:{m:02d}:00"
+    )
 
-    # Ordenar parades
 
-    trip_stop_times.sort(
-        key=lambda x: int(
-            x.get(
-                "stop_sequence",
-                0
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+
+    print()
+    print(
+        "=========================================="
+    )
+    print(
+        "R15 TRACKER"
+    )
+    print(
+        "Data:",
+        DATA
+    )
+    print(
+        "=========================================="
+    )
+
+    # --------------------------------------------------------
+    # GTFS
+    # --------------------------------------------------------
+
+    gtfs = descarregar_gtfs()
+
+    # --------------------------------------------------------
+    # FITXERS
+    # --------------------------------------------------------
+
+    routes = llegir(
+        gtfs,
+        "routes.txt"
+    )
+
+    trips = llegir(
+        gtfs,
+        "trips.txt"
+    )
+
+    stop_times = llegir(
+        gtfs,
+        "stop_times.txt"
+    )
+
+    stops = llegir(
+        gtfs,
+        "stops.txt"
+    )
+
+    calendar = llegir(
+        gtfs,
+        "calendar.txt"
+    )
+
+    # --------------------------------------------------------
+    # ESTACIONS
+    # --------------------------------------------------------
+
+    stop_names = {}
+
+    for stop in stops:
+
+        stop_id = normalitzar_id(
+            stop.get(
+                "stop_id"
             )
         )
-    )
 
-    stop_times_r15_count += len(
-        trip_stop_times
-    )
+        stop_name = (
+            stop.get(
+                "stop_name",
+                ""
+            ).strip()
+        )
 
-    direction = determine_direction(
-        trip_stop_times
-    )
-
-    if direction is None:
-        continue
-
+        stop_names[
+            stop_id
+        ] = stop_name
 
     # --------------------------------------------------------
-    # PARADES
+    # LOCALITZAR REUS
     # --------------------------------------------------------
 
-    train_stops = []
+    reus_stop_ids = set()
 
-    for stop_time in trip_stop_times:
+    for stop_id, nom in stop_names.items():
 
-        stop_id = clean(
+        if (
+            "REUS"
+            in nom.upper()
+        ):
+
+            reus_stop_ids.add(
+                stop_id
+            )
+
+    print()
+    print(
+        "Estacions Reus:",
+        reus_stop_ids
+    )
+
+    # --------------------------------------------------------
+    # RUTES R15
+    # --------------------------------------------------------
+
+    r15_routes = set()
+
+    for route in routes:
+
+        route_name = (
+            route.get(
+                "route_short_name",
+                ""
+            ).strip()
+        )
+
+        if route_name.upper() == "R15":
+
+            r15_routes.add(
+                normalitzar_id(
+                    route.get(
+                        "route_id"
+                    )
+                )
+            )
+
+    print(
+        "Rutes R15:",
+        len(r15_routes)
+    )
+
+    # --------------------------------------------------------
+    # SERVEIS ACTIUS
+    # --------------------------------------------------------
+
+    serveis_actius = set()
+
+    for service in calendar:
+
+        if servei_actiu(
+            service,
+            DATA
+        ):
+
+            serveis_actius.add(
+                normalitzar_id(
+                    service.get(
+                        "service_id"
+                    )
+                )
+            )
+
+    print(
+        "Serveis actius:",
+        len(serveis_actius)
+    )
+
+    # --------------------------------------------------------
+    # TRIPS R15 DEL DIA
+    # --------------------------------------------------------
+
+    r15_trips = []
+
+    for trip in trips:
+
+        route_id = normalitzar_id(
+            trip.get(
+                "route_id"
+            )
+        )
+
+        service_id = normalitzar_id(
+            trip.get(
+                "service_id"
+            )
+        )
+
+        if (
+            route_id in r15_routes
+            and
+            service_id in serveis_actius
+        ):
+
+            r15_trips.append(
+                trip
+            )
+
+    print(
+        "Trips R15 del dia:",
+        len(r15_trips)
+    )
+
+    # --------------------------------------------------------
+    # INDEXAR TRIPS
+    # --------------------------------------------------------
+
+    trip_by_id = {}
+
+    for trip in r15_trips:
+
+        trip_id = normalitzar_id(
+            trip.get(
+                "trip_id"
+            )
+        )
+
+        trip_by_id[
+            trip_id
+        ] = trip
+
+    # --------------------------------------------------------
+    # INDEXAR STOP_TIMES
+    #
+    # IMPORTANT:
+    # aquí normalitzem TAMBÉ els trip_id.
+    # --------------------------------------------------------
+
+    parades = defaultdict(list)
+
+    coincidencies = 0
+
+    for stop_time in stop_times:
+
+        trip_id = normalitzar_id(
+            stop_time.get(
+                "trip_id"
+            )
+        )
+
+        if trip_id not in trip_by_id:
+
+            continue
+
+        stop_id = normalitzar_id(
             stop_time.get(
                 "stop_id"
             )
         )
 
-        stop_info = stops_by_id.get(
+        station = stop_names.get(
             stop_id,
-            {}
+            stop_id
         )
 
-        station_name = clean(
-            stop_info.get(
-                "stop_name"
-            )
-        )
-
-        arrival = minutes_from_gtfs_time(
+        sequence_text = (
             stop_time.get(
-                "arrival_time"
-            )
-        )
-
-        departure = minutes_from_gtfs_time(
-            stop_time.get(
-                "departure_time"
+                "stop_sequence",
+                "0"
             )
         )
 
         try:
+
             sequence = int(
-                stop_time.get(
-                    "stop_sequence",
-                    0
-                )
+                sequence_text
             )
 
         except Exception:
-            sequence = 0
 
+            continue
 
-        train_stops.append({
+        arrival = (
+            stop_time.get(
+                "arrival_time",
+                ""
+            )
+        )
 
-            "station": station_name,
+        departure = (
+            stop_time.get(
+                "departure_time",
+                ""
+            )
+        )
 
-            "stop_id": stop_id,
+        parades[
+            trip_id
+        ].append({
 
-            "sequence": sequence,
+            "sequence":
+                sequence,
 
-            "scheduled_arrival": arrival,
+            "stop_id":
+                stop_id,
 
-            "scheduled_departure": departure,
+            "station":
+                station,
 
-            "actual_minutes": None
+            "arrival":
+                arrival,
+
+            "departure":
+                departure,
+
+            "scheduled_arrival":
+                hora_a_minuts(
+                    arrival
+                ),
+
+            "scheduled_departure":
+                hora_a_minuts(
+                    departure
+                )
 
         })
 
+        coincidencies += 1
 
-    if not train_stops:
-        continue
-
+    print(
+        "Stop_times R15 trobats:",
+        coincidencies
+    )
 
     # --------------------------------------------------------
     # ORDENAR PARADES
     # --------------------------------------------------------
 
-    train_stops.sort(
-        key=lambda x: x.get(
-            "sequence",
-            0
+    for trip_id in parades:
+
+        parades[
+            trip_id
+        ].sort(
+            key=lambda x:
+                x["sequence"]
         )
-    )
-
-
-    first_stop = train_stops[0]
-
-    last_stop = train_stops[-1]
-
-
-    departure_minutes = (
-        first_stop.get(
-            "scheduled_departure"
-        )
-    )
-
-    arrival_minutes = (
-        last_stop.get(
-            "scheduled_arrival"
-        )
-    )
-
 
     # --------------------------------------------------------
-    # SERVICE ID
+    # CONSTRUIR CIRCULACIONS
     # --------------------------------------------------------
 
-    service_id = clean(
-        trip.get(
-            "service_id"
-        )
-    )
+    circulacions = []
 
+    for trip in r15_trips:
 
-    # --------------------------------------------------------
-    # CREAR TRAIN
-    # --------------------------------------------------------
-
-    train = {
-
-        "train_id": trip_id,
-
-        "route_id": clean(
+        trip_id = normalitzar_id(
             trip.get(
-                "route_id"
+                "trip_id"
             )
-        ),
+        )
 
-        "service_id": service_id,
+        stops_trip = parades.get(
+            trip_id,
+            []
+        )
 
-        "direction": direction,
+        # Sense parades no podem mostrar
+        # la circulació.
+        if not stops_trip:
 
-        "departure": departure_minutes,
+            continue
 
-        "arrival": arrival_minutes,
+        primera = (
+            stops_trip[0]
+        )
 
-        "started": False,
+        ultima = (
+            stops_trip[-1]
+        )
 
-        "arrived": False,
+        # ----------------------------------------------------
+        # DETERMINAR SENTIT
+        # ----------------------------------------------------
 
-        "final_delay_minutes": 0,
+        passa_reus = any(
+            stop["stop_id"]
+            in reus_stop_ids
+            for stop in stops_trip
+        )
 
-        "has_realtime": False,
+        nom_primera = (
+            primera["station"]
+            .upper()
+        )
 
-        "stops": train_stops
+        nom_ultima = (
+            ultima["station"]
+            .upper()
+        )
+
+        # Intentem identificar Barcelona.
+        es_barcelona = (
+            "BARCELONA"
+            in nom_primera
+            or
+            "BARCELONA"
+            in nom_ultima
+        )
+
+        if (
+            es_barcelona
+            and
+            "REUS"
+            in nom_ultima
+        ):
+
+            direction = "BAR_REUS"
+
+        elif (
+            "REUS"
+            in nom_primera
+            and
+            es_barcelona
+        ):
+
+            direction = "REUS_BAR"
+
+        elif passa_reus:
+
+            # Si el tram R15 conté Reus però
+            # no identifica Barcelona en el mateix
+            # trip, mantenim el sentit segons
+            # la posició de Reus.
+            if (
+                reus_stop_ids
+                and
+                primera["stop_id"]
+                in reus_stop_ids
+            ):
+
+                direction = "REUS_BAR"
+
+            else:
+
+                direction = "BAR_REUS"
+
+        else:
+
+            # Altres trams R15 que no passen per Reus
+            # no ens interessen per al tracker
+            continue
+
+        # ----------------------------------------------------
+        # PARADES PER AL JSON
+        # ----------------------------------------------------
+
+        stops_json = []
+
+        for stop in stops_trip:
+
+            stops_json.append({
+
+                "station":
+                    stop["station"],
+
+                "stop_id":
+                    stop["stop_id"],
+
+                "scheduled_arrival":
+                    stop["scheduled_arrival"],
+
+                "scheduled_departure":
+                    stop["scheduled_departure"],
+
+                "actual_minutes":
+                    None
+
+            })
+
+        # ----------------------------------------------------
+        # SORTIR DE LA CIRCULACIÓ
+        # ----------------------------------------------------
+
+        departure_iso = (
+            hora_a_iso(
+                DATA,
+                primera["departure"]
+            )
+        )
+
+        arrival_iso = (
+            hora_a_iso(
+                DATA,
+                ultima["arrival"]
+            )
+        )
+
+        circulacio = {
+
+            "train_id":
+                trip_id,
+
+            "route_id":
+                normalitzar_id(
+                    trip.get(
+                        "route_id"
+                    )
+                ),
+
+            "service_id":
+                normalitzar_id(
+                    trip.get(
+                        "service_id"
+                    )
+                ),
+
+            "direction":
+                direction,
+
+            "departure":
+                departure_iso,
+
+            "arrival":
+                arrival_iso,
+
+            "started":
+                False,
+
+            "arrived":
+                False,
+
+            "final_delay_minutes":
+                0,
+
+            "stops":
+                stops_json
+
+        }
+
+        circulacions.append(
+            circulacio
+        )
+
+    # --------------------------------------------------------
+    # ORDENAR
+    # --------------------------------------------------------
+
+    circulacions.sort(
+        key=lambda train:
+            (
+                train["departure"]
+                or ""
+            )
+    )
+
+    # --------------------------------------------------------
+    # RESULTAT
+    # --------------------------------------------------------
+
+    resultat = {
+
+        "source":
+            "Renfe Data",
+
+        "source_type":
+            "GTFS",
+
+        "generated_at":
+            datetime.now().astimezone().isoformat(),
+
+        "date":
+            DATA.isoformat(),
+
+        "line":
+            "R15",
+
+        "trains":
+            circulacions
 
     }
 
+    # --------------------------------------------------------
+    # CREAR DIRECTORI
+    # --------------------------------------------------------
 
-    trains.append(
-        train
+    os.makedirs(
+        OUTPUT_DIR,
+        exist_ok=True
     )
 
+    output_file = os.path.join(
+        OUTPUT_DIR,
+        f"{DATA.isoformat()}.json"
+    )
 
-# ============================================================
-# ORDENAR TRENS
-# ============================================================
+    # --------------------------------------------------------
+    # GUARDAR JSON
+    # --------------------------------------------------------
 
-trains.sort(
-    key=lambda x: (
-        x.get(
-            "direction",
-            ""
-        ),
-        x.get(
-            "departure"
+    with open(
+        output_file,
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        json.dump(
+            resultat,
+            f,
+            ensure_ascii=False,
+            indent=2
         )
-        if x.get(
-            "departure"
-        ) is not None
-        else 9999
-    )
-)
 
+    # --------------------------------------------------------
+    # RESUM
+    # --------------------------------------------------------
 
-# ============================================================
-# GUARDAR JSON
-# ============================================================
-
-output = {
-
-    "date": today_str,
-
-    "generated_at":
-        datetime.now().isoformat(),
-
-    "source": GTFS_URL,
-
-    "trains": trains
-
-}
-
-
-with open(
-    output_file,
-    "w",
-    encoding="utf-8"
-) as f:
-
-    json.dump(
-        output,
-        f,
-        ensure_ascii=False,
-        indent=2
+    print()
+    print(
+        "=========================================="
     )
 
+    print(
+        "CIRCULACIONS R15:",
+        len(circulacions)
+    )
 
-# ============================================================
-# RESUM
-# ============================================================
+    print(
+        "Barcelona → Reus:",
+        sum(
+            1
+            for t in circulacions
+            if t["direction"]
+            == "BAR_REUS"
+        )
+    )
 
-bar_reus = sum(
-    1
-    for train in trains
-    if train.get(
-        "direction"
-    ) == "BAR_REUS"
-)
+    print(
+        "Reus → Barcelona:",
+        sum(
+            1
+            for t in circulacions
+            if t["direction"]
+            == "REUS_BAR"
+        )
+    )
 
-reus_bar = sum(
-    1
-    for train in trains
-    if train.get(
-        "direction"
-    ) == "REUS_BAR"
-)
+    print(
+        "Fitxer generat:",
+        output_file
+    )
+
+    print(
+        "=========================================="
+    )
 
 
-print()
-print("==========================================")
-
-print(
-    "Rutes R15:",
-    len(r15_routes)
-)
-
-print(
-    "Serveis actius:",
-    len(active_service_ids)
-)
-
-print(
-    "Trips R15 del dia:",
-    len(r15_trips)
-)
-
-print(
-    "Stop_times R15:",
-    stop_times_r15_count
-)
-
-print(
-    "Circulacions R15:",
-    len(trains)
-)
-
-print(
-    "Barcelona → Reus:",
-    bar_reus
-)
-
-print(
-    "Reus → Barcelona:",
-    reus_bar
-)
-
-print(
-    "Fitxer:",
-    output_file
-)
-
-print("==========================================")
-print("FI COLLECTOR")
-print("==========================================")
-```
+if __name__ == "__main__":
+    main()
