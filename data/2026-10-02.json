@@ -33,7 +33,7 @@
           "delay_minutes": 0,
           "actual_time": "2026-10-02T05:45:00+02:00",
           "realtime_event": "arrival",
-          "realtime_captured_at": "2026-10-02T05:22:21.614841+02:00"
+          "realtime_captured_at": "2026-10-02T05:26:26.322367+02:00"
         },
         {
           "station": "Tarragona",
@@ -3170,6 +3170,6 @@
       ]
     }
   ],
-  "realtime_updated_at": "2026-10-02T05:22:21.614867+02:00",
+  "realtime_updated_at": "2026-10-02T05:26:26.322399+02:00",
   "realtime_source": "https://gtfsrt.renfe.com/trip_updates.json"
 }
