@@ -1375,7 +1375,7 @@
       "arrival": "2026-10-02T15:24:00",
       "started": false,
       "arrived": false,
-      "final_delay_minutes": 0,
+      "final_delay_minutes": 15,
       "stops": [
         {
           "station": "Reus",
@@ -1424,30 +1424,52 @@
           "stop_id": "71700",
           "scheduled_arrival": 871,
           "scheduled_departure": 872,
-          "actual_minutes": null
+          "actual_minutes": 886,
+          "actual_time": "2026-10-02T14:46:17+02:00",
+          "realtime_type": "estimated",
+          "delay_seconds": 900,
+          "delay_minutes": 15,
+          "realtime_event": "arrival",
+          "realtime_captured_at": "2026-10-02T14:33:28.700774+02:00"
         },
         {
           "station": "Barcelona-Sants",
           "stop_id": "71801",
           "scheduled_arrival": 907,
           "scheduled_departure": 909,
-          "actual_minutes": null
+          "actual_minutes": 922,
+          "delay_seconds": 900,
+          "delay_minutes": 15,
+          "realtime_type": "estimated_propagated",
+          "realtime_event": "propagated"
         },
         {
           "station": "Barcelona-Passeig de Gràcia",
           "stop_id": "71802",
           "scheduled_arrival": 913,
           "scheduled_departure": 914,
-          "actual_minutes": null
+          "actual_minutes": 928,
+          "delay_seconds": 900,
+          "delay_minutes": 15,
+          "realtime_type": "estimated_propagated",
+          "realtime_event": "propagated"
         },
         {
           "station": "Barcelona Estació de França",
           "stop_id": "79400",
           "scheduled_arrival": 924,
           "scheduled_departure": 924,
-          "actual_minutes": null
+          "actual_minutes": 939,
+          "delay_seconds": 900,
+          "delay_minutes": 15,
+          "realtime_type": "estimated_propagated",
+          "realtime_event": "propagated"
         }
-      ]
+      ],
+      "schedule_relationship": "SCHEDULED",
+      "realtime_trip_delay_seconds": 900,
+      "realtime_trip_delay_minutes": 15,
+      "has_realtime": true
     },
     {
       "train_id": "5173V15033R15",
@@ -1541,7 +1563,7 @@
       "arrival": "2026-10-02T16:03:00",
       "started": false,
       "arrived": false,
-      "final_delay_minutes": 0,
+      "final_delay_minutes": 1,
       "stops": [
         {
           "station": "Barcelona Estació de França",
@@ -1569,51 +1591,85 @@
           "stop_id": "71700",
           "scheduled_arrival": 905,
           "scheduled_departure": 906,
-          "actual_minutes": null
+          "actual_minutes": 906,
+          "actual_time": "2026-10-02T15:06:25+02:00",
+          "realtime_type": "estimated",
+          "delay_seconds": 60,
+          "delay_minutes": 1,
+          "realtime_event": "arrival",
+          "realtime_captured_at": "2026-10-02T14:33:28.700830+02:00"
         },
         {
           "station": "Sant Vicenç de Calders",
           "stop_id": "71600",
           "scheduled_arrival": 918,
           "scheduled_departure": 919,
-          "actual_minutes": null
+          "actual_minutes": 919,
+          "delay_seconds": 60,
+          "delay_minutes": 1,
+          "realtime_type": "estimated_propagated",
+          "realtime_event": "propagated"
         },
         {
           "station": "Torredembarra",
           "stop_id": "71503",
           "scheduled_arrival": 928,
           "scheduled_departure": 929,
-          "actual_minutes": null
+          "actual_minutes": 929,
+          "delay_seconds": 60,
+          "delay_minutes": 1,
+          "realtime_type": "estimated_propagated",
+          "realtime_event": "propagated"
         },
         {
           "station": "Altafulla-Tamarit",
           "stop_id": "71502",
           "scheduled_arrival": 932,
           "scheduled_departure": 932,
-          "actual_minutes": null
+          "actual_minutes": 933,
+          "delay_seconds": 60,
+          "delay_minutes": 1,
+          "realtime_type": "estimated_propagated",
+          "realtime_event": "propagated"
         },
         {
           "station": "Tarragona",
           "stop_id": "71500",
           "scheduled_arrival": 942,
           "scheduled_departure": 944,
-          "actual_minutes": null
+          "actual_minutes": 943,
+          "delay_seconds": 60,
+          "delay_minutes": 1,
+          "realtime_type": "estimated_propagated",
+          "realtime_event": "propagated"
         },
         {
           "station": "Vila-seca",
           "stop_id": "71401",
           "scheduled_arrival": 952,
           "scheduled_departure": 952,
-          "actual_minutes": null
+          "actual_minutes": 953,
+          "delay_seconds": 60,
+          "delay_minutes": 1,
+          "realtime_type": "estimated_propagated",
+          "realtime_event": "propagated"
         },
         {
           "station": "Reus",
           "stop_id": "71400",
           "scheduled_arrival": 963,
           "scheduled_departure": 963,
-          "actual_minutes": null
+          "actual_minutes": 964,
+          "delay_seconds": 60,
+          "delay_minutes": 1,
+          "realtime_type": "estimated_propagated",
+          "realtime_event": "propagated"
         }
-      ]
+      ],
+      "schedule_relationship": "SCHEDULED",
+      "realtime_trip_delay_seconds": 60,
+      "realtime_trip_delay_minutes": 1,
+      "has_realtime": true
     },
     {
       "train_id": "5173V30514R15",
@@ -3181,6 +3237,6 @@
       ]
     }
   ],
-  "realtime_updated_at": "2026-10-02T12:00:23.146819+02:00",
+  "realtime_updated_at": "2026-10-02T14:33:28.700854+02:00",
   "realtime_source": "https://gtfsrt.renfe.com/trip_updates.json"
 }
