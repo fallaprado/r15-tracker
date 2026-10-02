@@ -4,6 +4,7 @@ import io
 import csv
 import json
 import os
+import re
 from collections import defaultdict
 from datetime import date, datetime
 
@@ -21,7 +22,7 @@ def descarregar_gtfs():
     for recurs in dades["result"]["resources"]:
         if recurs.get("format", "").upper() == "GTFS":
             url = recurs["url"]
-            print("URL GTFS:", url)
+            print("URL GTFS trobada:", url)
             resposta = requests.get(url, timeout=120)
             resposta.raise_for_status()
             return zipfile.ZipFile(io.BytesIO(resposta.content))
@@ -48,18 +49,21 @@ def llegir(zip_gtfs, nom):
 def normalitzar_id(valor):
     if valor is None:
         return ""
-    return "".join(str(valor).split())
+    return str(valor).strip()
 
 
 def servei_actiu(service, data):
-    inici = date.fromisoformat(service["start_date"])
-    final = date.fromisoformat(service["end_date"])
-    if not (inici <= data <= final):
-        return False
+    try:
+        inici = date.fromisoformat(service["start_date"])
+        final = date.fromisoformat(service["end_date"])
+        if not (inici <= data <= final):
+            return False
 
-    dies = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-    dia = dies[data.weekday()]
-    return service.get(dia, "") == "1"
+        dies = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+        dia = dies[data.weekday()]
+        return service.get(dia, "") == "1"
+    except Exception:
+        return False
 
 
 def hora_a_minuts(hora):
@@ -129,10 +133,7 @@ def main():
         if route_id in r15_routes and service_id in serveis_actius:
             r15_trips.append(trip)
 
-    trip_by_id = {}
-    for trip in r15_trips:
-        trip_id = normalitzar_id(trip.get("trip_id"))
-        trip_by_id[trip_id] = trip
+    trip_by_id = {normalitzar_id(t.get("trip_id")): t for t in r15_trips}
 
     parades = defaultdict(list)
     for stop_time in stop_times:
@@ -142,9 +143,8 @@ def main():
 
         stop_id = normalitzar_id(stop_time.get("stop_id"))
         station = stop_names.get(stop_id, stop_id)
-        sequence_text = stop_time.get("stop_sequence", "0")
         try:
-            sequence = int(sequence_text)
+            sequence = int(stop_time.get("stop_sequence", "0"))
         except Exception:
             continue
 
