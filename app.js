@@ -7,21 +7,14 @@ const dateInput = document.getElementById("date");
 const summary = document.getElementById("summary");
 const trainsContainer = document.getElementById("trains");
 
-
-/* =========================================================
-   DATA
-   ========================================================= */
-
 function getTodayLocal() {
     const now = new Date();
-
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const day = String(now.getDate()).padStart(2, "0");
 
     return year + "-" + month + "-" + day;
 }
-
 
 function minutesToTime(minutes) {
     if (minutes === null || minutes === undefined) {
@@ -50,7 +43,6 @@ function minutesToTime(minutes) {
     );
 }
 
-
 function formatDate(dateString) {
     if (!dateString) {
         return "";
@@ -62,23 +54,33 @@ function formatDate(dateString) {
         return dateString;
     }
 
-    return parts[2] + "/" + parts[1] + "/" + parts[0];
+    return (
+        parts[2] +
+        "/" +
+        parts[1] +
+        "/" +
+        parts[0]
+    );
 }
 
 
-/* =========================================================
+/* =====================================================
    ESTAT DEL TREN
-   ========================================================= */
+   ===================================================== */
 
 function getTrainStatus(train) {
+
     if (!train.departure || !train.arrival) {
         return "pending";
     }
 
     const now = new Date();
 
-    const departure = new Date(train.departure);
-    const arrival = new Date(train.arrival);
+    const departure =
+        new Date(train.departure);
+
+    const arrival =
+        new Date(train.arrival);
 
     if (Number.isNaN(departure.getTime())) {
         return "pending";
@@ -88,19 +90,50 @@ function getTrainStatus(train) {
         return "pending";
     }
 
+    const finalDelay =
+        Number(
+            train.final_delay_minutes || 0
+        );
+
+
+    /*
+     * 1. JA HA ARRIBAT
+     */
+
+    if (now >= arrival) {
+
+        if (finalDelay > 15) {
+            return "late";
+        }
+
+        return "finished";
+    }
+
+
+    /*
+     * 2. ENCARA NO HA SORTIT
+     */
+
     if (now < departure) {
         return "pending";
     }
 
-    if (now >= departure && now <= arrival) {
-        return "running";
-    }
 
-    return "finished";
+    /*
+     * 3. JA HA SORTIT PERÒ ENCARA ESTÀ
+     *    EN CIRCULACIÓ
+     */
+
+    return "running";
 }
 
 
+/* =====================================================
+   TEXT DE L'ESTAT
+   ===================================================== */
+
 function getStatusText(status) {
+
     if (status === "pending") {
         return "Pendent";
     }
@@ -109,16 +142,22 @@ function getStatusText(status) {
         return "En circulació";
     }
 
+    if (status === "late") {
+        return "Arribat amb retard";
+    }
+
     return "Finalitzat";
 }
 
 
-/* =========================================================
-   CARREGAR JSON
-   ========================================================= */
+/* =====================================================
+   CARREGAR DADES
+   ===================================================== */
 
 async function loadData() {
-    const selectedDate = dateInput.value;
+
+    const selectedDate =
+        dateInput.value;
 
     if (!selectedDate) {
         return;
@@ -128,15 +167,18 @@ async function loadData() {
         '<p class="loading">Carregant dades...</p>';
 
     try {
+
         const url =
             "data/" +
             selectedDate +
             ".json?t=" +
             Date.now();
 
-        const response = await fetch(url);
+        const response =
+            await fetch(url);
 
         if (!response.ok) {
+
             throw new Error(
                 "No existeix el fitxer " +
                 selectedDate +
@@ -144,14 +186,19 @@ async function loadData() {
             );
         }
 
-        const data = await response.json();
+        const data =
+            await response.json();
 
         currentData = data;
 
         render();
 
     } catch (error) {
-        console.error("Error carregant dades:", error);
+
+        console.error(
+            "Error carregant dades:",
+            error
+        );
 
         currentData = null;
 
@@ -169,11 +216,12 @@ async function loadData() {
 }
 
 
-/* =========================================================
-   PINTAR TRENS
-   ========================================================= */
+/* =====================================================
+   RENDERITZAR LLISTA
+   ===================================================== */
 
 function render() {
+
     if (!currentData) {
         return;
     }
@@ -185,9 +233,16 @@ function render() {
         currentData.trains || [];
 
     const trains =
-        allTrains.filter(function(train) {
-            return train.direction === selectedDirection;
-        });
+        allTrains.filter(
+            function(train) {
+
+                return (
+                    train.direction ===
+                    selectedDirection
+                );
+            }
+        );
+
 
     summary.innerHTML =
         "<strong>" +
@@ -197,9 +252,12 @@ function render() {
         trains.length +
         " circulacions";
 
+
     trainsContainer.innerHTML = "";
 
+
     if (trains.length === 0) {
+
         trainsContainer.innerHTML =
             '<div class="empty">' +
             "No hi ha circulacions per a aquest sentit." +
@@ -208,19 +266,27 @@ function render() {
         return;
     }
 
-    trains.forEach(function(train) {
-        const element = createTrain(train);
 
-        trainsContainer.appendChild(element);
-    });
+    trains.forEach(
+        function(train) {
+
+            const element =
+                createTrain(train);
+
+            trainsContainer.appendChild(
+                element
+            );
+        }
+    );
 }
 
 
-/* =========================================================
-   CREAR UN TREN
-   ========================================================= */
+/* =====================================================
+   CREAR TARGETA DEL TREN
+   ===================================================== */
 
 function createTrain(train) {
+
     const article =
         document.createElement("article");
 
@@ -231,25 +297,35 @@ function createTrain(train) {
         "train " + status;
 
 
-    /* ---------- PRIMERA I ÚLTIMA PARADA ---------- */
+    const stops =
+        train.stops || [];
 
-    const stops = train.stops || [];
 
     let firstStop = null;
     let lastStop = null;
 
+
     if (stops.length > 0) {
-        firstStop = stops[0];
-        lastStop = stops[stops.length - 1];
+
+        firstStop =
+            stops[0];
+
+        lastStop =
+            stops[
+                stops.length - 1
+            ];
     }
 
 
-    /* ---------- HORES ---------- */
+    let departureTime =
+        "--:--";
 
-    let departureTime = "--:--";
-    let arrivalTime = "--:--";
+    let arrivalTime =
+        "--:--";
+
 
     if (firstStop) {
+
         departureTime =
             minutesToTime(
                 firstStop.scheduled_departure ??
@@ -257,7 +333,9 @@ function createTrain(train) {
             );
     }
 
+
     if (lastStop) {
+
         arrivalTime =
             minutesToTime(
                 lastStop.scheduled_arrival ??
@@ -266,21 +344,24 @@ function createTrain(train) {
     }
 
 
-    /* ---------- RETARD FINAL ---------- */
-
     const finalDelay =
-        Number(train.final_delay_minutes || 0);
+        Number(
+            train.final_delay_minutes || 0
+        );
 
 
-    /* ---------- HEADER ---------- */
+    /* =================================================
+       CAPÇALERA
+       ================================================= */
 
     const header =
         document.createElement("div");
 
-    header.className = "train-header";
+    header.className =
+        "train-header";
 
 
-    /* ---------- NÚMERO ---------- */
+    /* Número */
 
     const number =
         document.createElement("div");
@@ -288,11 +369,13 @@ function createTrain(train) {
     number.className =
         "train-number";
 
+
     const numberStrong =
         document.createElement("strong");
 
     numberStrong.textContent =
         "R15";
+
 
     const trainId =
         document.createElement("span");
@@ -300,11 +383,17 @@ function createTrain(train) {
     trainId.textContent =
         train.train_id || "";
 
-    number.appendChild(numberStrong);
-    number.appendChild(trainId);
+
+    number.appendChild(
+        numberStrong
+    );
+
+    number.appendChild(
+        trainId
+    );
 
 
-    /* ---------- RUTA ---------- */
+    /* Horaris */
 
     const route =
         document.createElement("div");
@@ -312,17 +401,23 @@ function createTrain(train) {
     route.className =
         "train-route";
 
+
     const departure =
         document.createElement("span");
 
     departure.textContent =
         departureTime;
 
+
     const arrow =
         document.createElement("span");
 
-    arrow.className = "arrow";
-    arrow.textContent = "→";
+    arrow.className =
+        "arrow";
+
+    arrow.textContent =
+        "→";
+
 
     const arrival =
         document.createElement("span");
@@ -330,18 +425,33 @@ function createTrain(train) {
     arrival.textContent =
         arrivalTime;
 
-    route.appendChild(departure);
-    route.appendChild(arrow);
-    route.appendChild(arrival);
+
+    route.appendChild(
+        departure
+    );
+
+    route.appendChild(
+        arrow
+    );
+
+    route.appendChild(
+        arrival
+    );
 
 
-    /* ---------- ESTAT ---------- */
+    /* Estat */
 
     const statusElement =
         document.createElement("div");
 
     statusElement.className =
         "train-status";
+
+
+    /*
+     * Punt animat només quan el tren
+     * està actualment en circulació.
+     */
 
     if (status === "running") {
 
@@ -351,9 +461,11 @@ function createTrain(train) {
         dot.className =
             "live-dot";
 
-        statusElement.appendChild(dot);
-
+        statusElement.appendChild(
+            dot
+        );
     }
+
 
     const statusText =
         document.createElement("span");
@@ -361,10 +473,14 @@ function createTrain(train) {
     statusText.textContent =
         getStatusText(status);
 
-    statusElement.appendChild(statusText);
+    statusElement.appendChild(
+        statusText
+    );
 
 
-    /* ---------- RETARD ---------- */
+    /*
+     * Mostrar retard final
+     */
 
     if (finalDelay > 0) {
 
@@ -379,22 +495,33 @@ function createTrain(train) {
             finalDelay +
             " min";
 
-        statusElement.appendChild(delay);
+        statusElement.appendChild(
+            delay
+        );
     }
 
 
-    /* ---------- MUNTAR HEADER ---------- */
+    header.appendChild(
+        number
+    );
 
-    header.appendChild(number);
-    header.appendChild(route);
-    header.appendChild(statusElement);
+    header.appendChild(
+        route
+    );
 
-    article.appendChild(header);
+    header.appendChild(
+        statusElement
+    );
 
 
-    /* =====================================================
+    article.appendChild(
+        header
+    );
+
+
+    /* =================================================
        PARADES
-       ===================================================== */
+       ================================================= */
 
     const stopsContainer =
         document.createElement("div");
@@ -403,139 +530,153 @@ function createTrain(train) {
         "stops";
 
 
-    stops.forEach(function(stop, index) {
+    stops.forEach(
+        function(stop) {
 
-        const row =
-            document.createElement("div");
+            const row =
+                document.createElement("div");
 
-        row.className =
-            "stop";
-
-
-        /* ---------- ESTACIÓ ---------- */
-
-        const station =
-            document.createElement("div");
-
-        station.className =
-            "stop-station";
-
-        station.textContent =
-            stop.station || "";
+            row.className =
+                "stop";
 
 
-        /* ---------- HORES ---------- */
+            const station =
+                document.createElement("div");
 
-        const times =
-            document.createElement("div");
+            station.className =
+                "stop-station";
 
-        times.className =
-            "stop-times";
-
-
-        /* PREVISTA */
-
-        const scheduled =
-            document.createElement("span");
-
-        scheduled.className =
-            "scheduled";
-
-        scheduled.textContent =
-            minutesToTime(
-                stop.scheduled_arrival ??
-                stop.scheduled_departure
-            );
+            station.textContent =
+                stop.station || "";
 
 
-        /* REAL */
+            const times =
+                document.createElement("div");
 
-        const actual =
-            document.createElement("span");
-
-        actual.className =
-            "actual";
+            times.className =
+                "stop-times";
 
 
-        if (
-            stop.actual_minutes !== null &&
-            stop.actual_minutes !== undefined
-        ) {
-
-            actual.textContent =
-                minutesToTime(
-                    stop.actual_minutes
-                );
-
-        } else {
-
-            actual.textContent =
-                "--:--";
-
-            actual.classList.add(
-                "pending-time"
-            );
-        }
-
-
-        /* RETARD */
-
-        const stopDelay =
-            Number(
-                stop.delay_minutes || 0
-            );
-
-
-        let delayElement = null;
-
-
-        if (stopDelay !== 0) {
-
-            delayElement =
+            const scheduled =
                 document.createElement("span");
 
-            delayElement.className =
-                "delay";
+            scheduled.className =
+                "scheduled";
 
-            if (stopDelay > 0) {
+            scheduled.textContent =
+                minutesToTime(
+                    stop.scheduled_arrival ??
+                    stop.scheduled_departure
+                );
 
-                delayElement.textContent =
-                    "+" +
-                    stopDelay +
-                    " min";
+
+            const actual =
+                document.createElement("span");
+
+            actual.className =
+                "actual";
+
+
+            if (
+                stop.actual_minutes !== null &&
+                stop.actual_minutes !== undefined
+            ) {
+
+                actual.textContent =
+                    minutesToTime(
+                        stop.actual_minutes
+                    );
 
             } else {
 
-                delayElement.textContent =
-                    stopDelay +
-                    " min";
+                actual.textContent =
+                    "--:--";
+
+                actual.classList.add(
+                    "pending-time"
+                );
             }
+
+
+            const stopDelay =
+                Number(
+                    stop.delay_minutes || 0
+                );
+
+
+            let delayElement = null;
+
+
+            if (stopDelay !== 0) {
+
+                delayElement =
+                    document.createElement(
+                        "span"
+                    );
+
+                delayElement.className =
+                    "delay";
+
+
+                if (stopDelay > 0) {
+
+                    delayElement.textContent =
+                        "+" +
+                        stopDelay +
+                        " min";
+
+                } else {
+
+                    delayElement.textContent =
+                        stopDelay +
+                        " min";
+                }
+            }
+
+
+            times.appendChild(
+                scheduled
+            );
+
+            times.appendChild(
+                actual
+            );
+
+
+            if (delayElement) {
+
+                times.appendChild(
+                    delayElement
+                );
+            }
+
+
+            row.appendChild(
+                station
+            );
+
+            row.appendChild(
+                times
+            );
+
+
+            stopsContainer.appendChild(
+                row
+            );
         }
+    );
 
 
-        times.appendChild(scheduled);
-        times.appendChild(actual);
-
-        if (delayElement) {
-            times.appendChild(delayElement);
-        }
-
-
-        row.appendChild(station);
-        row.appendChild(times);
-
-        stopsContainer.appendChild(row);
-    });
-
-
-    /* =====================================================
-       DEVOLUCIÓ
-       ===================================================== */
+    /* =================================================
+       DEVOLUCIÓ EXPRESS
+       ================================================= */
 
     if (finalDelay > 15) {
 
         const refund =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
         refund.className =
             "refund-message";
@@ -554,56 +695,59 @@ function createTrain(train) {
     );
 
 
-    /* =====================================================
-       CLIC DEL TREN
-       ===================================================== */
+    /* =================================================
+       OBRIR / TANCAR PARADES
+       ================================================= */
 
-    header.onclick = function() {
+    header.onclick =
+        function() {
 
-        const isOpen =
-            article.classList.contains(
-                "expanded"
-            );
+            const isOpen =
+                article.classList.contains(
+                    "expanded"
+                );
 
 
-        if (isOpen) {
+            if (isOpen) {
 
-            article.classList.remove(
-                "expanded"
-            );
+                article.classList.remove(
+                    "expanded"
+                );
 
-        } else {
+            } else {
 
-            article.classList.add(
-                "expanded"
-            );
-        }
-    };
+                article.classList.add(
+                    "expanded"
+                );
+            }
+        };
 
 
     return article;
 }
 
 
-/* =========================================================
+/* =====================================================
    EVENTS
-   ========================================================= */
+   ===================================================== */
 
 directionSelect.onchange =
     function() {
+
         render();
     };
 
 
 dateInput.onchange =
     function() {
+
         loadData();
     };
 
 
-/* =========================================================
+/* =====================================================
    INICI
-   ========================================================= */
+   ===================================================== */
 
 dateInput.value =
     getTodayLocal();
@@ -611,13 +755,13 @@ dateInput.value =
 loadData();
 
 
-/* =========================================================
-   ACTUALITZAR CADA MINUT
-   ========================================================= */
+/* Actualitzar cada minut */
 
 setInterval(
     function() {
+
         loadData();
+
     },
     60000
 );
