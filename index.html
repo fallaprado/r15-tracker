@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>R15 Tracker</title>
-
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -21,50 +19,35 @@
         <section class="controls">
 
             <div class="control">
-                <label for="direction">
-                    Sentit
-                </label>
+                <label for="direction">Sentit</label>
 
                 <select id="direction">
-                    <option value="BAR_REUS">
-                        Barcelona → Reus
-                    </option>
-
-                    <option value="REUS_BAR">
-                        Reus → Barcelona
-                    </option>
+                    <option value="BAR_REUS">Barcelona → Reus</option>
+                    <option value="REUS_BAR">Reus → Barcelona</option>
                 </select>
             </div>
 
-
             <div class="control">
-                <label for="date">
-                    Dia
-                </label>
-
-                <input
-                    type="date"
-                    id="date"
-                >
+                <label for="date">Dia</label>
+                <input type="date" id="date">
             </div>
 
         </section>
 
-
-        <section id="summary">
+        <!-- Botó per mostrar/ocultar els trens ja arribats -->
+        <section class="history-control">
+            <button id="toggleHistory" class="history-button">
+                Consultar trens ja arribats
+            </button>
         </section>
 
+        <section id="summary"></section>
 
         <section id="trains">
-
-            <p class="loading">
-                Carregant dades...
-            </p>
-
+            <p class="loading">Carregant dades...</p>
         </section>
 
     </main>
-
 
     <script src="app.js"></script>
 
