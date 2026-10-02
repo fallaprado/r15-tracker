@@ -5,8 +5,7 @@ import io
 import csv
 import json
 import os
-from datetime import datetime, date
-
+from datetime import datetime, date, timedelta
 
 GTFS_URL = (
     "https://ssl.renfe.com/ftransit/"
@@ -36,10 +35,11 @@ R15_ROUTES = {
 # ============================================================
 
 today = date.today()
+today_str = today.isoformat()
 
 output_file = os.path.join(
     DATA_DIR,
-    f"{today.isoformat()}.json"
+    f"{today_str}.json"
 )
 
 os.makedirs(
@@ -58,9 +58,7 @@ print("==========================================")
 # DESCARREGAR GTFS
 # ============================================================
 
-print(
-    "Descarregant GTFS de Renfe..."
-)
+print("Descarregant GTFS de Renfe...")
 
 response = requests.get(
     GTFS_URL,
@@ -87,7 +85,6 @@ zip_file = zipfile.ZipFile(
     io.BytesIO(response.content)
 )
 
-
 files = zip_file.namelist()
 
 print(
@@ -101,11 +98,7 @@ print(
 # ============================================================
 
 def read_csv(filename):
-
-    with zip_file.open(
-        filename
-    ) as f:
-
+    with zip_file.open(filename) as f:
         text = io.TextIOWrapper(
             f,
             encoding="utf-8-sig"
@@ -116,13 +109,18 @@ def read_csv(filename):
         )
 
 
-def minutes_from_gtfs_time(value):
+def clean(value):
+    if value is None:
+        return ""
 
+    return str(value).strip()
+
+
+def minutes_from_gtfs_time(value):
     if not value:
         return None
 
     try:
-
         parts = value.strip().split(":")
 
         if len(parts) != 3:
@@ -137,56 +135,73 @@ def minutes_from_gtfs_time(value):
         )
 
     except Exception:
-
         return None
 
 
-def clean(value):
+def date_from_gtfs(value):
+    """
+    Converteix YYYYMMDD a date.
+    """
 
-    if value is None:
-        return ""
+    value = clean(value)
 
-    return str(value).strip()
+    if not value:
+        return None
+
+    try:
+        return datetime.strptime(
+            value,
+            "%Y%m%d"
+        ).date()
+
+    except Exception:
+        return None
+
+
+def weekday_name(day):
+    """
+    Retorna el nom GTFS del dia de la setmana.
+    """
+
+    names = [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday"
+    ]
+
+    return names[day.weekday()]
 
 
 # ============================================================
 # CARREGAR TAULES
 # ============================================================
 
-print(
-    "Carregant routes.txt..."
-)
+print("Carregant routes.txt...")
+routes = read_csv("routes.txt")
 
-routes = read_csv(
-    "routes.txt"
-)
+print("Carregant trips.txt...")
+trips = read_csv("trips.txt")
 
+print("Carregant stop_times.txt...")
+stop_times = read_csv("stop_times.txt")
 
-print(
-    "Carregant trips.txt..."
-)
+print("Carregant stops.txt...")
+stops = read_csv("stops.txt")
 
-trips = read_csv(
-    "trips.txt"
-)
+print("Carregant calendar.txt...")
+calendar = read_csv("calendar.txt")
 
+calendar_dates = []
 
-print(
-    "Carregant stop_times.txt..."
-)
-
-stop_times = read_csv(
-    "stop_times.txt"
-)
-
-
-print(
-    "Carregant stops.txt..."
-)
-
-stops = read_csv(
-    "stops.txt"
-)
+if "calendar_dates.txt" in files:
+    print("Carregant calendar_dates.txt...")
+    calendar_dates = read_csv(
+        "calendar_dates.txt"
+    )
 
 
 # ============================================================
@@ -198,13 +213,10 @@ stops_by_id = {}
 for stop in stops:
 
     stop_id = clean(
-        stop.get(
-            "stop_id"
-        )
+        stop.get("stop_id")
     )
 
     if stop_id:
-
         stops_by_id[
             stop_id
         ] = stop
@@ -216,29 +228,19 @@ for stop in stops:
 
 r15_routes = set()
 
-
 for route in routes:
 
     route_id = clean(
-        route.get(
-            "route_id"
-        )
+        route.get("route_id")
     )
-
 
     route_short_name = clean(
-        route.get(
-            "route_short_name"
-        )
+        route.get("route_short_name")
     )
-
 
     route_long_name = clean(
-        route.get(
-            "route_long_name"
-        )
+        route.get("route_long_name")
     )
-
 
     text = (
         route_id
@@ -248,12 +250,10 @@ for route in routes:
         + route_long_name
     ).upper()
 
-
     if (
         "R15" in text
         or route_id in R15_ROUTES
     ):
-
         r15_routes.add(
             route_id
         )
@@ -266,24 +266,123 @@ print(
 
 
 # ============================================================
-# IDENTIFICAR TRIPS R15
+# DETERMINAR SERVEIS ACTIUS AVUI
+# ============================================================
+
+weekday = weekday_name(
+    today
+)
+
+active_service_ids = set()
+
+# ------------------------------------------------------------
+# CALENDAR.TXT
+# ------------------------------------------------------------
+
+for service in calendar:
+
+    service_id = clean(
+        service.get("service_id")
+    )
+
+    if not service_id:
+        continue
+
+    start_date = date_from_gtfs(
+        service.get("start_date")
+    )
+
+    end_date = date_from_gtfs(
+        service.get("end_date")
+    )
+
+    if start_date is None or end_date is None:
+        continue
+
+    if not (
+        start_date
+        <= today
+        <= end_date
+    ):
+        continue
+
+    value = clean(
+        service.get(weekday)
+    )
+
+    if value == "1":
+        active_service_ids.add(
+            service_id
+        )
+
+
+# ------------------------------------------------------------
+# CALENDAR_DATES.TXT
+#
+# exception_type:
+#
+# 1 = afegir servei
+# 2 = eliminar servei
+# ------------------------------------------------------------
+
+for exception in calendar_dates:
+
+    service_id = clean(
+        exception.get("service_id")
+    )
+
+    exception_date = date_from_gtfs(
+        exception.get("date")
+    )
+
+    if (
+        not service_id
+        or exception_date != today
+    ):
+        continue
+
+    exception_type = clean(
+        exception.get("exception_type")
+    )
+
+    if exception_type == "1":
+        active_service_ids.add(
+            service_id
+        )
+
+    elif exception_type == "2":
+        active_service_ids.discard(
+            service_id
+        )
+
+
+print(
+    "Serveis actius:",
+    len(active_service_ids)
+)
+
+
+# ============================================================
+# IDENTIFICAR TRIPS R15 DEL DIA
 # ============================================================
 
 r15_trips = []
 
-
 for trip in trips:
 
     route_id = clean(
-        trip.get(
-            "route_id"
-        )
+        trip.get("route_id")
     )
-
 
     if route_id not in r15_routes:
         continue
 
+    service_id = clean(
+        trip.get("service_id")
+    )
+
+    if service_id not in active_service_ids:
+        continue
 
     r15_trips.append(
         trip
@@ -291,7 +390,7 @@ for trip in trips:
 
 
 print(
-    "Trips R15 totals:",
+    "Trips R15 del dia:",
     len(r15_trips)
 )
 
@@ -302,26 +401,19 @@ print(
 
 stop_times_by_trip = {}
 
-
 for row in stop_times:
 
     trip_id = clean(
-        row.get(
-            "trip_id"
-        )
+        row.get("trip_id")
     )
-
 
     if not trip_id:
         continue
 
-
     if trip_id not in stop_times_by_trip:
-
         stop_times_by_trip[
             trip_id
         ] = []
-
 
     stop_times_by_trip[
         trip_id
@@ -331,7 +423,7 @@ for row in stop_times:
 
 
 # ============================================================
-# FUNCIÓ PER DETERMINAR SENTIT
+# DETERMINAR SENTIT
 # ============================================================
 
 def determine_direction(
@@ -341,13 +433,11 @@ def determine_direction(
     if not trip_stops:
         return None
 
-
     first_stop_id = clean(
         trip_stops[0].get(
             "stop_id"
         )
     )
-
 
     last_stop_id = clean(
         trip_stops[-1].get(
@@ -355,18 +445,15 @@ def determine_direction(
         )
     )
 
-
     first_stop = stops_by_id.get(
         first_stop_id,
         {}
     )
 
-
     last_stop = stops_by_id.get(
         last_stop_id,
         {}
     )
-
 
     first_name = (
         first_stop.get(
@@ -376,7 +463,6 @@ def determine_direction(
         or ""
     ).lower()
 
-
     last_name = (
         last_stop.get(
             "stop_name",
@@ -385,39 +471,29 @@ def determine_direction(
         or ""
     ).lower()
 
-
-    # Barcelona -> Reus
+    # Barcelona → Reus
 
     if (
         "barcelona" in first_name
         and "reus" in last_name
     ):
-
         return "BAR_REUS"
 
-
-    # Reus -> Barcelona
+    # Reus → Barcelona
 
     if (
         "reus" in first_name
         and "barcelona" in last_name
     ):
-
         return "REUS_BAR"
 
-
-    # Fallback basat en el primer/últim stop
-    # si Renfe utilitza noms lleugerament diferents.
+    # Fallback
 
     if "reus" in last_name:
-
         return "BAR_REUS"
 
-
     if "reus" in first_name:
-
         return "REUS_BAR"
-
 
     return None
 
@@ -434,15 +510,11 @@ stop_times_r15_count = 0
 for trip in r15_trips:
 
     trip_id = clean(
-        trip.get(
-            "trip_id"
-        )
+        trip.get("trip_id")
     )
-
 
     if not trip_id:
         continue
-
 
     trip_stop_times = (
         stop_times_by_trip.get(
@@ -451,12 +523,10 @@ for trip in r15_trips:
         )
     )
 
-
     if not trip_stop_times:
         continue
 
-
-    # Ordenar per stop_sequence
+    # Ordenar parades
 
     trip_stop_times.sort(
         key=lambda x: int(
@@ -467,16 +537,13 @@ for trip in r15_trips:
         )
     )
 
-
     stop_times_r15_count += len(
         trip_stop_times
     )
 
-
     direction = determine_direction(
         trip_stop_times
     )
-
 
     if direction is None:
         continue
@@ -488,7 +555,6 @@ for trip in r15_trips:
 
     train_stops = []
 
-
     for stop_time in trip_stop_times:
 
         stop_id = clean(
@@ -497,12 +563,10 @@ for trip in r15_trips:
             )
         )
 
-
         stop_info = stops_by_id.get(
             stop_id,
             {}
         )
-
 
         station_name = clean(
             stop_info.get(
@@ -510,13 +574,11 @@ for trip in r15_trips:
             )
         )
 
-
         arrival = minutes_from_gtfs_time(
             stop_time.get(
                 "arrival_time"
             )
         )
-
 
         departure = minutes_from_gtfs_time(
             stop_time.get(
@@ -524,9 +586,7 @@ for trip in r15_trips:
             )
         )
 
-
         try:
-
             sequence = int(
                 stop_time.get(
                     "stop_sequence",
@@ -535,7 +595,6 @@ for trip in r15_trips:
             )
 
         except Exception:
-
             sequence = 0
 
 
@@ -561,7 +620,7 @@ for trip in r15_trips:
 
 
     # --------------------------------------------------------
-    # SORT PARADES
+    # ORDENAR PARADES
     # --------------------------------------------------------
 
     train_stops.sort(
@@ -582,7 +641,6 @@ for trip in r15_trips:
             "scheduled_departure"
         )
     )
-
 
     arrival_minutes = (
         last_stop.get(
@@ -664,14 +722,15 @@ trains.sort(
 
 
 # ============================================================
-# GUARDAR
+# GUARDAR JSON
 # ============================================================
 
 output = {
 
-    "date": today.isoformat(),
+    "date": today_str,
 
-    "generated_at": datetime.now().isoformat(),
+    "generated_at":
+        datetime.now().isoformat(),
 
     "source": GTFS_URL,
 
@@ -717,34 +776,47 @@ reus_bar = sum(
 
 print()
 print("==========================================")
+
 print(
     "Rutes R15:",
     len(r15_routes)
 )
+
 print(
-    "Trips R15:",
+    "Serveis actius:",
+    len(active_service_ids)
+)
+
+print(
+    "Trips R15 del dia:",
     len(r15_trips)
 )
+
 print(
     "Stop_times R15:",
     stop_times_r15_count
 )
+
 print(
     "Circulacions R15:",
     len(trains)
 )
+
 print(
     "Barcelona → Reus:",
     bar_reus
 )
+
 print(
     "Reus → Barcelona:",
     reus_bar
 )
+
 print(
     "Fitxer:",
     output_file
 )
+
 print("==========================================")
 print("FI COLLECTOR")
 print("==========================================")
