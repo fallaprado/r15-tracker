@@ -1,490 +1,615 @@
+/* =========================================================
+   GENERAL
+   ========================================================= */
+
 * {
     box-sizing: border-box;
 }
 
 body {
+
     margin: 0;
-    font-family: Arial, Helvetica, sans-serif;
-    background: #f4f6f8;
-    color: #1f2933;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    background: #f4f5f7;
+
+    color: #222;
+
+    font-size: 18px;
 }
 
-
-/* =====================================================
-   CAPÇALERA
-   ===================================================== */
 
 header {
-    background: #ffffff;
-    padding: 25px 20px;
+
+    background: #1f2937;
+
+    color: white;
+
+    padding: 28px 20px;
+
     text-align: center;
-    border-bottom: 1px solid #ddd;
 }
+
 
 header h1 {
-    margin: 0;
-    font-size: 30px;
+
+    margin: 0 0 8px;
+
+    font-size: 34px;
 }
+
 
 header p {
-    margin: 8px 0 0;
-    color: #667085;
+
+    margin: 0;
+
+    font-size: 18px;
+
+    opacity: 0.9;
 }
 
-
-/* =====================================================
-   CONTINGUT PRINCIPAL
-   ===================================================== */
 
 main {
-    max-width: 1000px;
-    margin: 25px auto;
-    padding: 0 15px;
+
+    width: min(1000px, 94%);
+
+    margin: 25px auto 50px;
 }
 
 
-/* =====================================================
+/* =========================================================
    CONTROLS
-   ===================================================== */
+   ========================================================= */
 
 .controls {
+
     display: flex;
-    gap: 15px;
-    margin-bottom: 20px;
+
+    gap: 20px;
+
+    margin-bottom: 18px;
 }
+
 
 .control {
+
     flex: 1;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 7px;
 }
 
-label {
-    display: block;
+
+.control label {
+
     font-weight: bold;
-    margin-bottom: 6px;
+
+    font-size: 17px;
 }
 
-select,
-input[type="date"] {
+
+.control select,
+.control input {
+
     width: 100%;
-    padding: 12px;
+
+    padding: 13px 14px;
+
     border: 1px solid #ccc;
+
     border-radius: 8px;
+
     background: white;
-    font-size: 16px;
+
+    font-size: 18px;
 }
 
 
-/* =====================================================
-   RESUM
-   ===================================================== */
+/* =========================================================
+   HISTORY BUTTON
+   ========================================================= */
 
-#summary {
-    margin-bottom: 15px;
+.history-control {
+
+    margin-bottom: 20px;
+
+    text-align: center;
+}
+
+
+.history-button {
+
+    border: none;
+
+    border-radius: 9px;
+
+    padding: 14px 22px;
+
+    background: #374151;
+
+    color: white;
+
+    font-size: 18px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+
+.history-button:hover {
+
+    background: #111827;
+}
+
+
+/* =========================================================
+   SUMMARY
+   ========================================================= */
+
+.summary-box {
+
+    background: white;
+
+    border-radius: 10px;
+
+    padding: 15px 18px;
+
+    margin-bottom: 18px;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    gap: 20px;
+
+    font-size: 17px;
+
     color: #555;
 }
 
 
-/* =====================================================
-   TARGETES DELS TRENS
-   ===================================================== */
+/* =========================================================
+   TRAIN CARD
+   ========================================================= */
 
 .train {
-    background: white;
-    border-radius: 12px;
-    margin-bottom: 12px;
-    overflow: hidden;
 
-    border-left: 6px solid #999999;
+    background: white;
+
+    border-radius: 12px;
+
+    margin-bottom: 14px;
+
+    border-left: 8px solid #999;
 
     box-shadow:
         0 2px 6px rgba(0, 0, 0, 0.08);
 
+    cursor: pointer;
+
+    overflow: hidden;
+
     transition:
-        border-left-color 0.2s ease,
-        box-shadow 0.2s ease;
+        transform 0.15s,
+        box-shadow 0.15s;
 }
 
 
-/* =====================================================
-   COLORS DELS TRENS
-   ===================================================== */
+.train:hover {
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 4px 10px rgba(0, 0, 0, 0.12);
+}
 
 
-/*
- * GRIS
- *
- * Encara no ha sortit
- * o ja ha arribat amb ≤15 minuts.
- */
+/* =========================================================
+   STATUS COLORS
+   ========================================================= */
 
 .train.pending,
 .train.finished {
-    border-left-color: #999999;
+
+    border-left-color: #999;
 }
 
 
-/*
- * VERD
- *
- * Està circulant:
- * 0 - 3 minuts de retard.
- */
-
 .train.running {
+
     border-left-color: #2e9b57;
 }
 
 
-/*
- * TARONJA
- *
- * Està circulant:
- * 4 - 15 minuts de retard.
- */
-
 .train.warning {
+
     border-left-color: #f39c12;
 }
 
 
-/*
- * VERMELL
- *
- * Retard superior a 15 minuts.
- *
- * Pot estar circulant
- * o ja haver arribat.
- */
-
 .train.late {
+
     border-left-color: #d32f2f;
 }
 
 
-/* =====================================================
-   CAPÇALERA DEL TREN
-   ===================================================== */
+/* =========================================================
+   MAIN TRAIN CONTENT
+   ========================================================= */
 
-.train-header {
-    display: grid;
+.train-main {
 
-    grid-template-columns:
-        1fr
-        1fr
-        1fr;
+    min-height: 105px;
+
+    padding: 20px;
+
+    display: flex;
+
+    justify-content: space-between;
 
     align-items: center;
 
-    padding: 16px;
-
-    cursor: pointer;
-    user-select: none;
-}
-
-.train-header:hover {
-    background: #f8fafc;
+    gap: 20px;
 }
 
 
-/* =====================================================
-   IDENTIFICACIÓ DEL TREN
-   ===================================================== */
+.train-left {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 28px;
+
+    min-width: 0;
+}
+
 
 .train-number {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
+
+    font-size: 21px;
+
+    font-weight: bold;
+
+    white-space: nowrap;
 }
 
-.train-number strong {
-    font-size: 20px;
-}
-
-.train-number span {
-    font-size: 12px;
-    color: #777;
-}
-
-
-/* =====================================================
-   HORARIS
-   ===================================================== */
 
 .train-route {
+
     display: flex;
 
-    justify-content: center;
     align-items: center;
 
-    gap: 10px;
-
-    font-size: 20px;
-    font-weight: bold;
+    gap: 13px;
 }
 
-.train-route .arrow {
+
+.train-time {
+
+    font-size: 30px;
+
+    font-weight: bold;
+
+    white-space: nowrap;
+}
+
+
+.arrow {
+
+    font-size: 25px;
+
     color: #777;
 }
 
 
-/* =====================================================
-   ESTAT
-   ===================================================== */
+.train-right {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 20px;
+
+    text-align: right;
+}
+
 
 .train-status {
-    text-align: right;
 
-    font-size: 14px;
+    font-size: 18px;
+
     font-weight: bold;
 }
 
 
-/* =====================================================
-   PUNT ANIMAT
-   ===================================================== */
+.expand-icon {
 
-.live-dot {
-    display: inline-block;
+    font-size: 28px;
 
-    width: 9px;
-    height: 9px;
+    font-weight: bold;
 
-    border-radius: 50%;
-
-    margin-right: 5px;
-
-    background: #2e9b57;
-
-    animation: pulse 1.5s infinite;
-}
-
-
-/*
- * El punt de trens amb retard
- * 4-15 minuts serà taronja.
- */
-
-.train.warning .live-dot {
-    background: #f39c12;
-}
-
-
-/*
- * El punt de trens amb retard
- * superior a 15 minuts serà vermell.
- */
-
-.train.late .live-dot {
-    background: #d32f2f;
-}
-
-
-@keyframes pulse {
-
-    0% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.3;
-    }
-
-    100% {
-        opacity: 1;
-    }
-}
-
-
-/* =====================================================
-   PARADES
-   ===================================================== */
-
-.stops {
-    display: none !important;
-
-    border-top: 1px solid #e5e7eb;
-
-    padding:
-        5px
-        16px
-        15px;
-}
-
-.train.expanded .stops {
-    display: block !important;
-}
-
-
-/* =====================================================
-   CADA PARADA
-   ===================================================== */
-
-.stop {
-    display: grid;
-
-    grid-template-columns:
-        1fr
-        auto;
-
-    align-items: center;
-
-    padding:
-        10px
-        5px;
-
-    border-bottom:
-        1px solid #eeeeee;
-}
-
-.stop:last-child {
-    border-bottom: none;
-}
-
-
-/* =====================================================
-   NOM ESTACIÓ
-   ===================================================== */
-
-.stop-station {
-    font-size: 15px;
-}
-
-
-/* =====================================================
-   HORES DE LA PARADA
-   ===================================================== */
-
-.stop-times {
-    display: flex;
-
-    align-items: center;
-
-    gap: 10px;
-}
-
-
-/*
- * Hora teòrica
- */
-
-.scheduled {
     color: #777;
 
-    font-size: 14px;
+    width: 25px;
+
+    text-align: center;
 }
 
 
-/*
- * Hora real / estimada
- */
+/* =========================================================
+   REFUND
+   ========================================================= */
 
-.actual {
-    font-weight: bold;
-
-    font-size: 15px;
-}
-
-
-/*
- * Quan encara no tenim
- * informació de temps real.
- */
-
-.pending-time {
-    color: #aaa;
-}
-
-
-/* =====================================================
-   RETARDS
-   ===================================================== */
-
-.delay {
-    color: #d32f2f;
-
-    font-weight: bold;
-
-    font-size: 13px;
-}
-
-
-/* =====================================================
-   DEVOLUCIÓ EXPRESS
-   ===================================================== */
-
-.refund-message {
-    margin-top: 15px;
-
-    padding: 12px;
-
-    border-radius: 8px;
+.refund {
 
     background: #ffebee;
 
     color: #c62828;
 
+    border-top: 1px solid #ffcdd2;
+
+    padding: 12px 20px;
+
     font-weight: bold;
 
-    text-align: center;
+    font-size: 17px;
 }
 
 
-/* =====================================================
-   CARREGANT / SENSE DADES
-   ===================================================== */
+/* =========================================================
+   STOPS
+   ========================================================= */
 
-.loading,
-.empty {
-    background: white;
+.stops {
 
-    padding: 25px;
+    display: none;
 
-    text-align: center;
+    border-top: 1px solid #eee;
 
-    border-radius: 10px;
+    padding: 15px 20px 20px;
+
+    background: #fafafa;
+}
+
+
+.train.expanded .stops {
+
+    display: block;
+}
+
+
+.stops-title {
+
+    font-weight: bold;
+
+    font-size: 19px;
+
+    margin-bottom: 12px;
+}
+
+
+.stop-row {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 15px;
+
+    padding: 10px 0;
+
+    border-bottom: 1px solid #e5e5e5;
+}
+
+
+.stop-row:last-child {
+
+    border-bottom: none;
+}
+
+
+.stop-name {
+
+    font-size: 17px;
+
+    font-weight: 500;
+}
+
+
+.stop-times {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 14px;
+
+    white-space: nowrap;
+}
+
+
+.theoretical-time {
+
+    font-size: 17px;
 
     color: #777;
 }
 
 
-/* =====================================================
-   VERSIÓ MÒBIL
-   ===================================================== */
+.actual-time {
+
+    font-size: 18px;
+
+    font-weight: bold;
+
+    color: #222;
+}
+
+
+.estimated-time {
+
+    font-size: 18px;
+
+    font-weight: bold;
+
+    color: #555;
+}
+
+
+/* =========================================================
+   LOADING / EMPTY
+   ========================================================= */
+
+.loading {
+
+    text-align: center;
+
+    padding: 40px;
+
+    color: #777;
+
+    font-size: 19px;
+}
+
+
+.empty {
+
+    background: white;
+
+    border-radius: 12px;
+
+    padding: 35px 20px;
+
+    text-align: center;
+}
+
+
+.empty-title {
+
+    font-size: 22px;
+
+    font-weight: bold;
+
+    margin-bottom: 10px;
+}
+
+
+.empty-text {
+
+    color: #777;
+
+    font-size: 17px;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
 
 @media (max-width: 700px) {
 
-    .controls {
-        flex-direction: column;
+    body {
+        font-size: 17px;
     }
 
 
-    .train-header {
-        grid-template-columns: 1fr;
+    header h1 {
+        font-size: 28px;
+    }
 
-        gap: 10px;
+
+    header p {
+        font-size: 16px;
+    }
+
+
+    .controls {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+
+    .train-main {
+
+        align-items: flex-start;
+
+        padding: 17px;
+
+        min-height: 0;
+    }
+
+
+    .train-left {
+
+        flex-direction: column;
+
+        align-items: flex-start;
+
+        gap: 8px;
     }
 
 
     .train-route {
-        justify-content: flex-start;
+
+        gap: 8px;
+    }
+
+
+    .train-time {
+
+        font-size: 26px;
+    }
+
+
+    .train-right {
+
+        flex-direction: column;
+
+        align-items: flex-end;
+
+        gap: 8px;
     }
 
 
     .train-status {
-        text-align: left;
+
+        font-size: 15px;
     }
 
 
-    .stop {
-        grid-template-columns: 1fr;
+    .stop-row {
+
+        align-items: flex-start;
+
+        flex-direction: column;
 
         gap: 5px;
     }
 
 
     .stop-times {
-        justify-content: flex-start;
 
-        flex-wrap: wrap;
+        width: 100%;
+
+        justify-content: flex-start;
+    }
+
+
+    .summary-box {
+
+        flex-direction: column;
+
+        gap: 5px;
     }
 }
