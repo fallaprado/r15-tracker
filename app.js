@@ -38,12 +38,20 @@ function parseTimeToMinutes(value) {
         return null;
     }
 
-    // Si és timestamp Unix
+    // Minuts des de mitjanit
+    if (
+        typeof value === "number" &&
+        value >= 0 &&
+        value < 1440
+    ) {
+        return value;
+    }
+
+    // Timestamp Unix
     if (
         typeof value === "number" &&
         value > 1000000000
     ) {
-
         const date = new Date(value * 1000);
 
         return (
@@ -61,10 +69,10 @@ function parseTimeToMinutes(value) {
 
     if (match) {
 
-        const hours = Number(match[1]);
-        const minutes = Number(match[2]);
-
-        return hours * 60 + minutes;
+        return (
+            Number(match[1]) * 60 +
+            Number(match[2])
+        );
     }
 
     // ISO / datetime
