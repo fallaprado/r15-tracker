@@ -2,16 +2,9 @@ const directionSelect = document.getElementById("direction");
 const dateInput = document.getElementById("date");
 const trainsContainer = document.getElementById("trains");
 const summaryContainer = document.getElementById("summary");
-const toggleHistoryButton = document.getElementById("toggleHistory");
 
-
-// ============================================================
-// ESTAT DE LA PÀGINA
-// ============================================================
-
-// Per defecte NO mostrem els trens que ja han arribat.
+// Estat de la vista
 let showHistory = false;
-
 
 // ============================================================
 // DATA ACTUAL LOCAL
@@ -30,7 +23,7 @@ function getTodayLocal() {
 
 
 // ============================================================
-// CONVERTIR HH:MM A MINUTS
+// HH:MM -> MINUTS
 // ============================================================
 
 function timeToMinutes(timeString) {
@@ -39,7 +32,7 @@ function timeToMinutes(timeString) {
         return null;
     }
 
-    const match = timeString.match(/(\d{1,2}):(\d{2})/);
+    const match = String(timeString).match(/(\d{1,2}):(\d{2})/);
 
     if (!match) {
         return null;
@@ -53,7 +46,7 @@ function timeToMinutes(timeString) {
 
 
 // ============================================================
-// CONVERTIR MINUTS A HH:MM
+// MINUTS -> HH:MM
 // ============================================================
 
 function minutesToTime(minutes) {
@@ -66,8 +59,6 @@ function minutesToTime(minutes) {
         return "--:--";
     }
 
-    // Els horaris GTFS poden superar les 24:00
-    // en serveis nocturns.
     let totalMinutes = Math.round(minutes);
 
     totalMinutes = totalMinutes % (24 * 60);
@@ -84,7 +75,7 @@ function minutesToTime(minutes) {
 
 
 // ============================================================
-// FORMAT DE DATA
+// FORMAT DATA
 // ============================================================
 
 function formatDate(dateString) {
@@ -100,35 +91,85 @@ function formatDate(dateString) {
 
 
 // ============================================================
-// HORA DE SORTIDA DEL TREN
+// OBTENIR HORA DE SORTIDA
 // ============================================================
 
 function getDepartureMinutes(train) {
 
-    return timeToMinutes(
-        train.departure
-            ? train.departure.substring(11, 16)
-            : null
-    );
+    if (train.departure) {
+
+        const match = String(train.departure)
+            .match(/T(\d{2}):(\d{2})/);
+
+        if (match) {
+
+            return (
+                parseInt(match[1], 10) * 60 +
+                parseInt(match[2], 10)
+            );
+        }
+    }
+
+    if (train.departure_minutes !== undefined) {
+        return Number(train.departure_minutes);
+    }
+
+    return null;
 }
 
 
 // ============================================================
-// HORA D'ARRIBADA DEL TREN
+// OBTENIR HORA D'ARRIBADA
 // ============================================================
 
 function getArrivalMinutes(train) {
 
-    return timeToMinutes(
-        train.arrival
-            ? train.arrival.substring(11, 16)
-            : null
-    );
+    if (train.arrival) {
+
+        const match = String(train.arrival)
+            .match(/T(\d{2}):(\d{2})/);
+
+        if (match) {
+
+            return (
+                parseInt(match[1], 10) * 60 +
+                parseInt(match[2], 10)
+            );
+        }
+    }
+
+    if (train.arrival_minutes !== undefined) {
+        return Number(train.arrival_minutes);
+    }
+
+    // Si no tenim arrival del tren,
+    // intentem obtenir-lo de l'última parada.
+
+    if (
+        train.stops &&
+        train.stops.length > 0
+    ) {
+
+        const lastStop =
+            train.stops[train.stops.length - 1];
+
+        if (
+            lastStop.scheduled_arrival !== undefined &&
+            lastStop.scheduled_arrival !== null
+        ) {
+
+            return Number(
+                lastStop.scheduled_arrival
+            );
+        }
+    }
+
+    return null;
 }
 
 
 // ============================================================
-// RETARD ACTUAL DEL TREN
+// RETARD ACTUAL
 // ============================================================
 
 function getCurrentTrainDelay(train) {
@@ -144,37 +185,41 @@ function getCurrentTrainDelay(train) {
                 stop.delay_minutes !== undefined
             ) {
 
-                latestDelay = stop.delay_minutes;
-            }
+                const delay =
+                    Number(stop.delay_minutes);
 
+                if (!isNaN(delay)) {
+                    latestDelay = delay;
+                }
+            }
         });
     }
 
 
-    // Si tenim informació directa d'una parada,
-    // aquesta té prioritat.
     if (latestDelay !== null) {
         return latestDelay;
     }
 
 
-    // Retard global del tren.
     if (
         train.realtime_trip_delay_minutes !== null &&
         train.realtime_trip_delay_minutes !== undefined
     ) {
 
-        return train.realtime_trip_delay_minutes;
+        return Number(
+            train.realtime_trip_delay_minutes
+        );
     }
 
 
-    // Retard final conegut.
     if (
         train.final_delay_minutes !== null &&
         train.final_delay_minutes !== undefined
     ) {
 
-        return train.final_delay_minutes;
+        return Number(
+            train.final_delay_minutes
+        );
     }
 
 
@@ -193,7 +238,9 @@ function getFinalDelay(train) {
         train.final_delay_minutes !== undefined
     ) {
 
-        return train.final_delay_minutes;
+        return Number(
+            train.final_delay_minutes
+        );
     }
 
     return null;
@@ -201,33 +248,181 @@ function getFinalDelay(train) {
 
 
 // ============================================================
-// ESTAT DEL TREN
+// SABER SI JA HA ARRIBAT
 // ============================================================
 //
-// pending  → encara no ha sortit
-// running  → està circulant i va bé
-// warning  → circulant amb 4-15 minuts
-// late     → retard superior a 15 minuts
-// finished  → ja ha arribat
+// Aquesta és la part important.
 //
-// PRIORITAT:
+// No depenem únicament de:
 //
-// 1. Retard >15 → vermell
-// 2. Ja ha arribat → gris
-// 3. Encara no ha sortit → gris
-// 4. Circulant amb 4-15 → taronja
-// 5. Circulant amb 0-3 → verd
+//     train.arrived === true
+//
+// També comprovem:
+// - arrived = true / "true" / 1
+// - hora real de l'última parada
+// - hora prevista d'arribada + retard
+// - si la data seleccionada és anterior a avui
 //
 // ============================================================
 
-function getTrainStatus(train) {
+function hasTrainArrived(train, selectedDate) {
 
-    const currentDelay = getCurrentTrainDelay(train);
-    const finalDelay = getFinalDelay(train);
+    // --------------------------------------------------------
+    // 1. Si el collector ja ho sap
+    // --------------------------------------------------------
+
+    if (
+        train.arrived === true ||
+        train.arrived === "true" ||
+        train.arrived === 1 ||
+        train.arrived === "1"
+    ) {
+
+        return true;
+    }
 
 
     // --------------------------------------------------------
-    // 1. RETARD SUPERIOR A 15 MINUTS
+    // 2. Si la data és anterior a avui,
+    //    evidentment el tren ja ha acabat.
+    // --------------------------------------------------------
+
+    const today = getTodayLocal();
+
+    if (selectedDate < today) {
+        return true;
+    }
+
+
+    // --------------------------------------------------------
+    // 3. Data posterior a avui
+    // --------------------------------------------------------
+
+    if (selectedDate > today) {
+        return false;
+    }
+
+
+    // --------------------------------------------------------
+    // 4. AVUI:
+    //    comprovem hora actual
+    // --------------------------------------------------------
+
+    const now = new Date();
+
+    const currentMinutes =
+        now.getHours() * 60 +
+        now.getMinutes();
+
+
+    // --------------------------------------------------------
+    // 5. Hora d'arribada prevista
+    // --------------------------------------------------------
+
+    let arrivalMinutes =
+        getArrivalMinutes(train);
+
+
+    if (arrivalMinutes !== null) {
+
+        const delay =
+            getFinalDelay(train);
+
+        if (
+            delay !== null &&
+            delay > 0
+        ) {
+
+            arrivalMinutes += delay;
+        }
+
+
+        if (
+            currentMinutes >= arrivalMinutes &&
+            train.started !== false
+        ) {
+
+            return true;
+        }
+    }
+
+
+    // --------------------------------------------------------
+    // 6. Última parada amb hora real
+    // --------------------------------------------------------
+
+    if (
+        train.stops &&
+        train.stops.length > 0
+    ) {
+
+        const lastStop =
+            train.stops[train.stops.length - 1];
+
+
+        // actual_minutes
+        if (
+            lastStop.actual_minutes !== null &&
+            lastStop.actual_minutes !== undefined
+        ) {
+
+            const actual =
+                Number(lastStop.actual_minutes);
+
+            if (
+                !isNaN(actual) &&
+                currentMinutes >= actual
+            ) {
+
+                return true;
+            }
+        }
+
+
+        // actual_time
+        if (lastStop.actual_time) {
+
+            const match =
+                String(lastStop.actual_time)
+                    .match(/T(\d{2}):(\d{2})/);
+
+            if (match) {
+
+                const actualMinutes =
+                    parseInt(match[1], 10) * 60 +
+                    parseInt(match[2], 10);
+
+
+                if (
+                    currentMinutes >= actualMinutes
+                ) {
+
+                    return true;
+                }
+            }
+        }
+    }
+
+
+    return false;
+}
+
+
+// ============================================================
+// ESTAT DEL TREN
+// ============================================================
+
+function getTrainStatus(train, selectedDate) {
+
+    const currentDelay =
+        getCurrentTrainDelay(train);
+
+    const finalDelay =
+        getFinalDelay(train);
+
+
+    // --------------------------------------------------------
+    // RETARD >15 MINUTS
     // --------------------------------------------------------
 
     if (
@@ -243,34 +438,40 @@ function getTrainStatus(train) {
 
 
     // --------------------------------------------------------
-    // 2. TREN JA ARRIBAT
+    // JA ARRIBAT
     // --------------------------------------------------------
 
-    // Aquest és el camp que realment utilitza
-    // el JSON generat pel collector.
-
-    if (train.arrived === true) {
+    if (
+        hasTrainArrived(
+            train,
+            selectedDate
+        )
+    ) {
 
         return "finished";
     }
 
 
     // --------------------------------------------------------
-    // 3. TREN ENCARA NO HA SORTIT
+    // ENCARA NO HA SORTIT
     // --------------------------------------------------------
 
-    if (train.started === false) {
+    if (
+        train.started === false ||
+        train.started === "false" ||
+        train.started === 0 ||
+        train.started === "0"
+    ) {
 
         return "pending";
     }
 
 
     // --------------------------------------------------------
-    // 4. TREN CIRCULANT
+    // CIRCULANT
     // --------------------------------------------------------
 
     if (currentDelay >= 4) {
-
         return "warning";
     }
 
@@ -309,34 +510,138 @@ function getStatusText(status) {
 
 
 // ============================================================
-// OBTENIR NOM DE L'ORIGEN
+// ORIGEN
 // ============================================================
 
 function getTrainOrigin(train) {
 
-    if (train.stops && train.stops.length > 0) {
+    if (
+        train.stops &&
+        train.stops.length > 0
+    ) {
 
-        return train.stops[0].station || "";
+        const first =
+            train.stops[0];
+
+        return (
+            first.station ||
+            first.stop_name ||
+            first.name ||
+            ""
+        );
     }
 
-    return "";
+    return train.origin || "";
 }
 
 
 // ============================================================
-// OBTENIR NOM DEL DESTÍ
+// DESTÍ
 // ============================================================
 
 function getTrainDestination(train) {
 
-    if (train.stops && train.stops.length > 0) {
+    if (
+        train.stops &&
+        train.stops.length > 0
+    ) {
 
-        return train.stops[
-            train.stops.length - 1
-        ].station || "";
+        const last =
+            train.stops[
+                train.stops.length - 1
+            ];
+
+        return (
+            last.station ||
+            last.stop_name ||
+            last.name ||
+            ""
+        );
     }
 
-    return "";
+    return train.destination || "";
+}
+
+
+// ============================================================
+// CREAR / GARANTIR BOTÓ HISTÒRIC
+// ============================================================
+
+function ensureHistoryButton() {
+
+    let button =
+        document.getElementById(
+            "toggleHistory"
+        );
+
+
+    // Si no existeix a l'HTML,
+    // el creem automàticament.
+
+    if (!button) {
+
+        button =
+            document.createElement("button");
+
+        button.id =
+            "toggleHistory";
+
+        button.className =
+            "history-button";
+
+
+        const controls =
+            document.querySelector(
+                ".controls"
+            );
+
+
+        if (controls) {
+
+            controls.insertAdjacentElement(
+                "afterend",
+                button
+            );
+
+        } else {
+
+            document.body.prepend(button);
+        }
+    }
+
+
+    button.textContent =
+        showHistory
+            ? "Ocultar trens ja arribats"
+            : "Consultar trens ja arribats";
+
+
+    // Evitem afegir múltiples listeners.
+    if (!button.dataset.listenerAttached) {
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                showHistory =
+                    !showHistory;
+
+                button.textContent =
+                    showHistory
+                        ? "Ocultar trens ja arribats"
+                        : "Consultar trens ja arribats";
+
+                loadData();
+            }
+        );
+
+
+        button.dataset.listenerAttached =
+            "true";
+    }
+
+
+    return button;
 }
 
 
@@ -346,11 +651,16 @@ function getTrainDestination(train) {
 
 async function loadData() {
 
-    const date = dateInput.value;
+    const date =
+        dateInput.value;
+
 
     if (!date) {
         return;
     }
+
+
+    ensureHistoryButton();
 
 
     trainsContainer.innerHTML =
@@ -359,9 +669,10 @@ async function loadData() {
 
     try {
 
-        const response = await fetch(
-            `data/${date}.json?t=${Date.now()}`
-        );
+        const response =
+            await fetch(
+                `data/${date}.json?t=${Date.now()}`
+            );
 
 
         if (!response.ok) {
@@ -372,19 +683,25 @@ async function loadData() {
         }
 
 
-        const data = await response.json();
+        const data =
+            await response.json();
+
 
         render(data);
 
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "Error carregant dades:",
+            error
+        );
 
 
         trainsContainer.innerHTML = `
             <p class="error">
-                No hi ha dades disponibles per al ${formatDate(date)}.
+                No hi ha dades disponibles
+                per al ${formatDate(date)}.
             </p>
         `;
 
@@ -400,55 +717,75 @@ async function loadData() {
 
 function render(data) {
 
-    const direction = directionSelect.value;
+    const direction =
+        directionSelect.value;
+
+    const selectedDate =
+        dateInput.value;
 
 
-    let trains = data.trains || [];
-
-
-    // --------------------------------------------------------
-    // FILTRAR SENTIT
-    // --------------------------------------------------------
-
-    trains = trains.filter(train => {
-
-        return train.direction === direction;
-    });
+    let trains =
+        data.trains || [];
 
 
     // --------------------------------------------------------
-    // ORDENAR PER HORA DE SORTIDA
+    // SENTIT
     // --------------------------------------------------------
 
-    trains.sort((a, b) => {
-
-        return (
-            getDepartureMinutes(a) -
-            getDepartureMinutes(b)
+    trains =
+        trains.filter(
+            train =>
+                train.direction === direction
         );
-    });
 
 
     // --------------------------------------------------------
-    // FILTRAR TRENS JA ARRIBATS
+    // ORDENAR
+    // --------------------------------------------------------
+
+    trains.sort(
+        (a, b) =>
+            (
+                getDepartureMinutes(a) ?? 9999
+            ) -
+            (
+                getDepartureMinutes(b) ?? 9999
+            )
+    );
+
+
+    // --------------------------------------------------------
+    // VISTA NORMAL
     // --------------------------------------------------------
     //
-    // VISTA NORMAL:
-    //   només pendents + circulant
+    // Només:
     //
-    // HISTÒRIC:
-    //   tots els trens
+    // - pendents
+    // - circulant
+    // - retardats
+    //
+    // Els acabats desapareixen.
     //
     // --------------------------------------------------------
 
     if (!showHistory) {
 
-        trains = trains.filter(train => {
+        trains =
+            trains.filter(
+                train => {
 
-            const status = getTrainStatus(train);
+                    const status =
+                        getTrainStatus(
+                            train,
+                            selectedDate
+                        );
 
-            return status !== "finished";
-        });
+
+                    return (
+                        status !== "finished"
+                    );
+                }
+            );
     }
 
 
@@ -465,7 +802,8 @@ function render(data) {
             : 0;
 
 
-    const visibleTrains = trains.length;
+    const visibleTrains =
+        trains.length;
 
 
     if (showHistory) {
@@ -486,14 +824,15 @@ function render(data) {
                 <strong>${visibleTrains}</strong>
                 trens pendents o en circulació
                 ·
-                ${totalTrains} circulacions previstes
+                ${totalTrains}
+                circulacions previstes
             </div>
         `;
     }
 
 
     // ========================================================
-    // NO HI HA TRENS
+    // CAP TREN
     // ========================================================
 
     if (trains.length === 0) {
@@ -502,12 +841,10 @@ function render(data) {
 
             trainsContainer.innerHTML = `
                 <div class="empty">
-
                     <p>
                         No hi ha trens registrats
                         per a aquest sentit.
                     </p>
-
                 </div>
             `;
 
@@ -532,22 +869,24 @@ function render(data) {
             `;
 
 
-            // Important:
-            // no fem servir onclick="..."
-            // perquè aquest botó també ha de funcionar
-            // de manera fiable.
-
-            const emptyHistoryButton =
+            const emptyButton =
                 document.getElementById(
                     "emptyHistoryButton"
                 );
 
 
-            if (emptyHistoryButton) {
+            if (emptyButton) {
 
-                emptyHistoryButton.addEventListener(
+                emptyButton.addEventListener(
                     "click",
-                    enableHistory
+                    () => {
+
+                        showHistory = true;
+
+                        ensureHistoryButton();
+
+                        loadData();
+                    }
                 );
             }
         }
@@ -557,30 +896,40 @@ function render(data) {
 
 
     // ========================================================
-    // CREAR TARGETES
+    // CREAR TRENS
     // ========================================================
 
     trainsContainer.innerHTML = "";
 
 
-    trains.forEach(train => {
+    trains.forEach(
+        train => {
 
-        const element =
-            createTrain(train);
-
-        trainsContainer.appendChild(element);
-    });
+            trainsContainer.appendChild(
+                createTrain(
+                    train,
+                    selectedDate
+                )
+            );
+        }
+    );
 }
 
 
 // ============================================================
-// CREAR TREN
+// CREAR TARGETA DEL TREN
 // ============================================================
 
-function createTrain(train) {
+function createTrain(
+    train,
+    selectedDate
+) {
 
     const status =
-        getTrainStatus(train);
+        getTrainStatus(
+            train,
+            selectedDate
+        );
 
 
     const currentDelay =
@@ -600,7 +949,7 @@ function createTrain(train) {
 
 
     // ========================================================
-    // CAPÇALERA
+    // HEADER
     // ========================================================
 
     const header =
@@ -612,7 +961,7 @@ function createTrain(train) {
 
 
     // ========================================================
-    // INFORMACIÓ PRINCIPAL
+    // INFORMACIÓ
     // ========================================================
 
     const mainInfo =
@@ -622,10 +971,6 @@ function createTrain(train) {
     mainInfo.className =
         "train-main";
 
-
-    // --------------------------------------------------------
-    // NÚMERO DE TREN
-    // --------------------------------------------------------
 
     const trainNumber =
         document.createElement("div");
@@ -637,13 +982,10 @@ function createTrain(train) {
 
     trainNumber.textContent =
         train.train_id ||
+        train.train_number ||
         train.trip_id ||
         "R15";
 
-
-    // --------------------------------------------------------
-    // RECORREGUT
-    // --------------------------------------------------------
 
     const route =
         document.createElement("div");
@@ -657,8 +999,13 @@ function createTrain(train) {
         `${getTrainOrigin(train)} → ${getTrainDestination(train)}`;
 
 
-    mainInfo.appendChild(trainNumber);
-    mainInfo.appendChild(route);
+    mainInfo.appendChild(
+        trainNumber
+    );
+
+    mainInfo.appendChild(
+        route
+    );
 
 
     // ========================================================
@@ -673,16 +1020,15 @@ function createTrain(train) {
         "train-times";
 
 
-    // --------------------------------------------------------
-    // SORTIDA
-    // --------------------------------------------------------
-
     const departure =
         document.createElement("div");
 
 
     departure.innerHTML = `
-        <span class="time-label">Sortida</span>
+        <span class="time-label">
+            Sortida
+        </span>
+
         <strong>
             ${minutesToTime(
                 getDepartureMinutes(train)
@@ -691,16 +1037,15 @@ function createTrain(train) {
     `;
 
 
-    // --------------------------------------------------------
-    // ARRIBADA
-    // --------------------------------------------------------
-
     const arrival =
         document.createElement("div");
 
 
     arrival.innerHTML = `
-        <span class="time-label">Arribada</span>
+        <span class="time-label">
+            Arribada
+        </span>
+
         <strong>
             ${minutesToTime(
                 getArrivalMinutes(train)
@@ -709,8 +1054,13 @@ function createTrain(train) {
     `;
 
 
-    times.appendChild(departure);
-    times.appendChild(arrival);
+    times.appendChild(
+        departure
+    );
+
+    times.appendChild(
+        arrival
+    );
 
 
     // ========================================================
@@ -724,10 +1074,6 @@ function createTrain(train) {
     statusElement.className =
         "train-status";
 
-
-    // --------------------------------------------------------
-    // PUNT ANIMAT
-    // --------------------------------------------------------
 
     if (
         status === "running" ||
@@ -743,13 +1089,11 @@ function createTrain(train) {
             "live-dot";
 
 
-        statusElement.appendChild(liveDot);
+        statusElement.appendChild(
+            liveDot
+        );
     }
 
-
-    // --------------------------------------------------------
-    // TEXT
-    // --------------------------------------------------------
 
     const statusText =
         document.createElement("span");
@@ -759,7 +1103,9 @@ function createTrain(train) {
         getStatusText(status);
 
 
-    statusElement.appendChild(statusText);
+    statusElement.appendChild(
+        statusText
+    );
 
 
     // ========================================================
@@ -785,7 +1131,9 @@ function createTrain(train) {
                 `+${currentDelay} min`;
 
 
-            statusElement.appendChild(delay);
+            statusElement.appendChild(
+                delay
+            );
         }
 
     } else if (
@@ -805,17 +1153,23 @@ function createTrain(train) {
             `+${finalDelay} min`;
 
 
-        statusElement.appendChild(delay);
+        statusElement.appendChild(
+            delay
+        );
     }
 
 
-    // ========================================================
-    // MUNTAR CAPÇALERA
-    // ========================================================
+    header.appendChild(
+        mainInfo
+    );
 
-    header.appendChild(mainInfo);
-    header.appendChild(times);
-    header.appendChild(statusElement);
+    header.appendChild(
+        times
+    );
+
+    header.appendChild(
+        statusElement
+    );
 
 
     // ========================================================
@@ -834,7 +1188,9 @@ function createTrain(train) {
         "›";
 
 
-    header.appendChild(arrow);
+    header.appendChild(
+        arrow
+    );
 
 
     // ========================================================
@@ -854,151 +1210,168 @@ function createTrain(train) {
         train.stops.length > 0
     ) {
 
-        train.stops.forEach(stop => {
+        train.stops.forEach(
+            stop => {
 
-            const stopElement =
-                document.createElement("div");
-
-
-            stopElement.className =
-                "stop";
+                const stopElement =
+                    document.createElement("div");
 
 
-            // ------------------------------------------------
-            // NOM DE L'ESTACIÓ
-            // ------------------------------------------------
-
-            const stopName =
-                document.createElement("div");
+                stopElement.className =
+                    "stop";
 
 
-            stopName.className =
-                "stop-name";
+                const stopName =
+                    document.createElement("div");
 
 
-            stopName.textContent =
-                stop.station ||
-                stop.stop_name ||
-                stop.name ||
-                "";
+                stopName.className =
+                    "stop-name";
 
 
-            // ------------------------------------------------
-            // HORARIS
-            // ------------------------------------------------
-
-            const stopTimes =
-                document.createElement("div");
-
-
-            stopTimes.className =
-                "stop-times";
+                stopName.textContent =
+                    stop.station ||
+                    stop.stop_name ||
+                    stop.name ||
+                    "";
 
 
-            // ------------------------------------------------
-            // HORARI TEÒRIC
-            // ------------------------------------------------
-
-            const scheduled =
-                document.createElement("span");
+                const stopTimes =
+                    document.createElement("div");
 
 
-            scheduled.className =
-                "stop-scheduled";
+                stopTimes.className =
+                    "stop-times";
 
 
-            scheduled.textContent =
-                minutesToTime(
-                    stop.scheduled_arrival
-                );
+                // --------------------------------------------
+                // HORARI TEÒRIC
+                // --------------------------------------------
 
-
-            // ------------------------------------------------
-            // HORA REAL / ESTIMADA
-            // ------------------------------------------------
-
-            const actual =
-                document.createElement("span");
-
-
-            actual.className =
-                "stop-actual";
-
-
-            if (
-                stop.actual_minutes !== null &&
-                stop.actual_minutes !== undefined
-            ) {
-
-                actual.textContent =
-                    minutesToTime(
-                        stop.actual_minutes
-                    );
-
-            } else if (
-                stop.actual_time
-            ) {
-
-                actual.textContent =
-                    stop.actual_time.substring(
-                        11,
-                        16
-                    );
-
-            } else {
-
-                actual.textContent =
-                    "--:--";
-            }
-
-
-            stopTimes.appendChild(scheduled);
-            stopTimes.appendChild(actual);
-
-
-            // ------------------------------------------------
-            // RETARD
-            // ------------------------------------------------
-
-            if (
-                stop.delay_minutes !== null &&
-                stop.delay_minutes !== undefined &&
-                stop.delay_minutes !== 0
-            ) {
-
-                const stopDelay =
+                const scheduled =
                     document.createElement("span");
 
 
-                stopDelay.className =
-                    "stop-delay";
+                scheduled.className =
+                    "stop-scheduled";
 
 
-                if (stop.delay_minutes > 0) {
+                scheduled.textContent =
+                    minutesToTime(
+                        stop.scheduled_arrival
+                    );
 
-                    stopDelay.textContent =
-                        `+${stop.delay_minutes} min`;
+
+                // --------------------------------------------
+                // HORA REAL
+                // --------------------------------------------
+
+                const actual =
+                    document.createElement("span");
+
+
+                actual.className =
+                    "stop-actual";
+
+
+                if (
+                    stop.actual_minutes !== null &&
+                    stop.actual_minutes !== undefined
+                ) {
+
+                    actual.textContent =
+                        minutesToTime(
+                            stop.actual_minutes
+                        );
+
+                } else if (
+                    stop.actual_time
+                ) {
+
+                    const match =
+                        String(stop.actual_time)
+                            .match(
+                                /T(\d{2}):(\d{2})/
+                            );
+
+
+                    if (match) {
+
+                        actual.textContent =
+                            `${match[1]}:${match[2]}`;
+
+                    } else {
+
+                        actual.textContent =
+                            "--:--";
+                    }
 
                 } else {
 
-                    stopDelay.textContent =
-                        `${stop.delay_minutes} min`;
+                    actual.textContent =
+                        "--:--";
                 }
 
 
-                stopTimes.appendChild(stopDelay);
+                stopTimes.appendChild(
+                    scheduled
+                );
+
+                stopTimes.appendChild(
+                    actual
+                );
+
+
+                // --------------------------------------------
+                // RETARD
+                // --------------------------------------------
+
+                if (
+                    stop.delay_minutes !== null &&
+                    stop.delay_minutes !== undefined &&
+                    Number(stop.delay_minutes) !== 0
+                ) {
+
+                    const stopDelay =
+                        document.createElement("span");
+
+
+                    stopDelay.className =
+                        "stop-delay";
+
+
+                    const delay =
+                        Number(
+                            stop.delay_minutes
+                        );
+
+
+                    stopDelay.textContent =
+                        delay > 0
+                            ? `+${delay} min`
+                            : `${delay} min`;
+
+
+                    stopTimes.appendChild(
+                        stopDelay
+                    );
+                }
+
+
+                stopElement.appendChild(
+                    stopName
+                );
+
+                stopElement.appendChild(
+                    stopTimes
+                );
+
+
+                stopsContainer.appendChild(
+                    stopElement
+                );
             }
-
-
-            stopElement.appendChild(stopName);
-            stopElement.appendChild(stopTimes);
-
-
-            stopsContainer.appendChild(
-                stopElement
-            );
-
-        });
+        );
 
     } else {
 
@@ -1035,7 +1408,7 @@ function createTrain(train) {
 
 
     // ========================================================
-    // CLICK PER EXPANDIR
+    // EXPANDIR
     // ========================================================
 
     header.addEventListener(
@@ -1049,86 +1422,16 @@ function createTrain(train) {
     );
 
 
-    article.appendChild(header);
-    article.appendChild(stopsContainer);
+    article.appendChild(
+        header
+    );
+
+    article.appendChild(
+        stopsContainer
+    );
 
 
     return article;
-}
-
-
-// ============================================================
-// ACTIVAR HISTÒRIC
-// ============================================================
-
-function enableHistory() {
-
-    showHistory = true;
-
-    updateHistoryButton();
-
-    loadData();
-}
-
-
-// ============================================================
-// DESACTIVAR HISTÒRIC
-// ============================================================
-
-function disableHistory() {
-
-    showHistory = false;
-
-    updateHistoryButton();
-
-    loadData();
-}
-
-
-// ============================================================
-// ACTUALITZAR BOTÓ D'HISTÒRIC
-// ============================================================
-
-function updateHistoryButton() {
-
-    if (!toggleHistoryButton) {
-        return;
-    }
-
-
-    if (showHistory) {
-
-        toggleHistoryButton.textContent =
-            "Ocultar trens ja arribats";
-
-    } else {
-
-        toggleHistoryButton.textContent =
-            "Consultar trens ja arribats";
-    }
-}
-
-
-// ============================================================
-// CLICK BOTÓ HISTÒRIC
-// ============================================================
-
-if (toggleHistoryButton) {
-
-    toggleHistoryButton.addEventListener(
-        "click",
-        () => {
-
-            if (showHistory) {
-
-                disableHistory();
-
-            } else {
-
-                enableHistory();
-            }
-        }
-    );
 }
 
 
@@ -1153,12 +1456,12 @@ dateInput.addEventListener(
     "change",
     () => {
 
-        // Quan canviem de dia tornem
-        // a la vista normal.
+        // Cada vegada que canviem de dia,
+        // tornem a la vista principal.
 
         showHistory = false;
 
-        updateHistoryButton();
+        ensureHistoryButton();
 
         loadData();
     }
@@ -1166,14 +1469,14 @@ dateInput.addEventListener(
 
 
 // ============================================================
-// INICIALITZACIÓ
+// INICI
 // ============================================================
 
 dateInput.value =
     getTodayLocal();
 
 
-updateHistoryButton();
+ensureHistoryButton();
 
 
 loadData();
@@ -1181,16 +1484,6 @@ loadData();
 
 // ============================================================
 // ACTUALITZACIÓ AUTOMÀTICA
-// ============================================================
-//
-// Cada minut tornem a carregar les dades.
-//
-// Això permet que:
-// - un tren pendent passi a circulació
-// - un tren circulant passi a acabat
-// - apareguin nous retards
-// - desapareguin els trens arribats
-//
 // ============================================================
 
 setInterval(
