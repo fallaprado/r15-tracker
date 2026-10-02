@@ -9,10 +9,6 @@ body {
     color: #1f2933;
 }
 
-/* =========================================================
-   CAPÇALERA
-   ========================================================= */
-
 header {
     background: #ffffff;
     padding: 25px 20px;
@@ -30,21 +26,11 @@ header p {
     color: #667085;
 }
 
-
-/* =========================================================
-   CONTINGUT PRINCIPAL
-   ========================================================= */
-
 main {
     max-width: 1000px;
     margin: 25px auto;
     padding: 0 15px;
 }
-
-
-/* =========================================================
-   SELECTORS
-   ========================================================= */
 
 .controls {
     display: flex;
@@ -72,56 +58,89 @@ input[type="date"] {
     font-size: 16px;
 }
 
-
-/* =========================================================
-   RESUM
-   ========================================================= */
-
 #summary {
     margin-bottom: 15px;
     color: #555;
 }
 
 
-/* =========================================================
+/* =====================================================
    TARGETA DEL TREN
-   ========================================================= */
+   ===================================================== */
 
 .train {
     background: white;
     border-radius: 12px;
     margin-bottom: 12px;
     overflow: hidden;
-    border-left: 6px solid #bbb;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+
+    border-left: 6px solid #2e9b57;
+
+    box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.08);
 }
+
+
+/*
+ * VERD
+ *
+ * Tren pendent de sortir
+ * o tren finalitzat sense retard >15 min.
+ */
 
 .train.pending {
-    border-left-color: #999;
-}
-
-.train.running {
     border-left-color: #2e9b57;
 }
+
+
+/*
+ * GRIS
+ *
+ * Tren que ja ha sortit
+ * però encara està en circulació.
+ */
+
+.train.running {
+    border-left-color: #999999;
+}
+
+
+/*
+ * VERD
+ *
+ * Tren que ja ha arribat
+ * amb un retard de 15 minuts
+ * o menys.
+ */
 
 .train.finished {
     border-left-color: #2e9b57;
 }
 
-.train.refund {
+
+/*
+ * VERMELL
+ *
+ * Tren que ja ha arribat
+ * amb més de 15 minuts de retard.
+ */
+
+.train.late {
     border-left-color: #d32f2f;
 }
 
 
-/* =========================================================
-   CAPÇALERA DEL TREN
-   ========================================================= */
+/* =====================================================
+   CAPÇALERA
+   ===================================================== */
 
 .train-header {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     align-items: center;
+
     padding: 16px;
+
     cursor: pointer;
     user-select: none;
 }
@@ -131,9 +150,7 @@ input[type="date"] {
 }
 
 
-/* =========================================================
-   NÚMERO DEL TREN
-   ========================================================= */
+/* Número */
 
 .train-number {
     display: flex;
@@ -151,15 +168,15 @@ input[type="date"] {
 }
 
 
-/* =========================================================
-   HORARIS
-   ========================================================= */
+/* Horaris */
 
 .train-route {
     display: flex;
     justify-content: center;
     align-items: center;
+
     gap: 10px;
+
     font-size: 20px;
     font-weight: bold;
 }
@@ -169,27 +186,37 @@ input[type="date"] {
 }
 
 
-/* =========================================================
-   ESTAT DEL TREN
-   ========================================================= */
+/* Estat */
 
 .train-status {
     text-align: right;
+
     font-size: 14px;
     font-weight: bold;
 }
 
+
+/* =====================================================
+   PUNT ANIMAT
+   ===================================================== */
+
 .live-dot {
     display: inline-block;
+
     width: 9px;
     height: 9px;
+
     border-radius: 50%;
+
     background: #2e9b57;
+
     margin-right: 5px;
+
     animation: pulse 1.5s infinite;
 }
 
 @keyframes pulse {
+
     0% {
         opacity: 1;
     }
@@ -204,123 +231,136 @@ input[type="date"] {
 }
 
 
-/* =========================================================
+/* =====================================================
    PARADES
-   ========================================================= */
-
-/*
-   Per defecte les parades estan amagades.
-*/
+   ===================================================== */
 
 .stops {
     display: none !important;
+
     border-top: 1px solid #e5e7eb;
-    padding: 5px 16px 15px;
+
+    padding:
+        5px
+        16px
+        15px;
 }
-
-
-/*
-   Quan el tren té la classe "expanded",
-   les parades es mostren.
-
-   !important evita que qualsevol altra regla
-   del navegador o del CSS les torni a ocultar.
-*/
 
 .train.expanded .stops {
     display: block !important;
 }
 
 
-/* =========================================================
-   CADA PARADA
-   ========================================================= */
-
 .stop {
     display: grid;
-    grid-template-columns: 1fr auto;
+
+    grid-template-columns:
+        1fr
+        auto;
+
     align-items: center;
-    padding: 10px 5px;
-    border-bottom: 1px solid #eeeeee;
+
+    padding:
+        10px
+        5px;
+
+    border-bottom:
+        1px solid #eeeeee;
 }
 
 .stop:last-child {
     border-bottom: none;
 }
 
+
 .stop-station {
     font-size: 15px;
 }
 
 
-/* =========================================================
-   HORES DE CADA PARADA
-   ========================================================= */
-
 .stop-times {
     display: flex;
+
     align-items: center;
+
     gap: 10px;
 }
 
+
 .scheduled {
     color: #777;
+
     font-size: 14px;
 }
 
+
 .actual {
     font-weight: bold;
+
     font-size: 15px;
 }
+
 
 .pending-time {
     color: #aaa;
 }
 
 
-/* =========================================================
+/* =====================================================
    RETARDS
-   ========================================================= */
+   ===================================================== */
 
 .delay {
     color: #d32f2f;
+
     font-weight: bold;
+
     font-size: 13px;
 }
 
 
-/* =========================================================
-   DEVOLUCIÓ EXPRESS
-   ========================================================= */
+/* =====================================================
+   DEVOLUCIÓ
+   ===================================================== */
 
 .refund-message {
     margin-top: 15px;
+
     padding: 12px;
+
     border-radius: 8px;
+
     background: #ffebee;
+
     color: #c62828;
+
     font-weight: bold;
+
     text-align: center;
 }
 
 
-/* =========================================================
-   CARREGANT / SENSE DADES
-   ========================================================= */
+/* =====================================================
+   CARREGANT / BUIT
+   ===================================================== */
 
 .loading,
 .empty {
     background: white;
+
     padding: 25px;
+
     text-align: center;
+
     border-radius: 10px;
+
     color: #777;
 }
 
 
-/* =========================================================
+/* =====================================================
    MÒBIL
-   ========================================================= */
+   ===================================================== */
 
 @media (max-width: 700px) {
 
@@ -330,6 +370,7 @@ input[type="date"] {
 
     .train-header {
         grid-template-columns: 1fr;
+
         gap: 10px;
     }
 
@@ -343,11 +384,13 @@ input[type="date"] {
 
     .stop {
         grid-template-columns: 1fr;
+
         gap: 5px;
     }
 
     .stop-times {
         justify-content: flex-start;
+
         flex-wrap: wrap;
     }
 }
