@@ -13,7 +13,6 @@ let currentData = null;
 // ============================================================
 
 function getTodayString() {
-
     const now = new Date();
 
     return (
@@ -40,32 +39,20 @@ function parseTimeToMinutes(value) {
         return null;
     }
 
+    const number = Number(value);
+
     // Minuts des de mitjanit
     if (
-        typeof value === "number" &&
-        value >= 0 &&
-        value < 1440
+        Number.isFinite(number) &&
+        number >= 0 &&
+        number < 1440
     ) {
-        return value;
+        return number;
     }
-
-    // Timestamp Unix
-    if (
-        typeof value === "number" &&
-        value > 1000000000
-    ) {
-
-        const date = new Date(value * 1000);
-
-        return (
-            date.getHours() * 60 +
-            date.getMinutes()
-        );
-    }
-
-    const stringValue = String(value).trim();
 
     // HH:MM
+    const stringValue = String(value).trim();
+
     const match = stringValue.match(
         /^(\d{1,2}):(\d{2})/
     );
@@ -75,17 +62,6 @@ function parseTimeToMinutes(value) {
         return (
             Number(match[1]) * 60 +
             Number(match[2])
-        );
-    }
-
-    // ISO / datetime
-    const date = new Date(stringValue);
-
-    if (!Number.isNaN(date.getTime())) {
-
-        return (
-            date.getHours() * 60 +
-            date.getMinutes()
         );
     }
 
@@ -103,46 +79,32 @@ function formatTime(value) {
         return "--:--";
     }
 
-    // Minuts des de mitjanit
+    const minutes = Number(value);
+
+    // Les dades de Renfe són minuts des de mitjanit
     if (
-        typeof value === "number" &&
-        value >= 0 &&
-        value < 1440
+        Number.isFinite(minutes) &&
+        minutes >= 0 &&
+        minutes < 1440
     ) {
 
         const hours =
-            Math.floor(value / 60);
+            Math.floor(minutes / 60);
 
-        const minutes =
-            value % 60;
+        const mins =
+            minutes % 60;
 
         return (
             String(hours).padStart(2, "0") +
             ":" +
-            String(minutes).padStart(2, "0")
+            String(mins).padStart(2, "0")
         );
     }
 
-    // Timestamp Unix
-    if (
-        typeof value === "number" &&
-        value > 1000000000
-    ) {
-
-        const date =
-            new Date(value * 1000);
-
-        return (
-            String(date.getHours()).padStart(2, "0") +
-            ":" +
-            String(date.getMinutes()).padStart(2, "0")
-        );
-    }
-
+    // Per si algun camp ja ve com HH:MM
     const stringValue =
         String(value).trim();
 
-    // HH:MM
     const match =
         stringValue.match(
             /^(\d{1,2}):(\d{2})/
@@ -157,20 +119,18 @@ function formatTime(value) {
         );
     }
 
-    // ISO / datetime
-    const date =
-        new Date(stringValue);
+    return "--:--";
+}
 
-    if (!Number.isNaN(date.getTime())) {
 
-        return (
-            String(date.getHours()).padStart(2, "0") +
-            ":" +
-            String(date.getMinutes()).padStart(2, "0")
-        );
-    }
+function getNowMinutes() {
 
-    return stringValue;
+    const now = new Date();
+
+    return (
+        now.getHours() * 60 +
+        now.getMinutes()
+    );
 }
 
 
@@ -184,42 +144,36 @@ function getDelayMinutes(stop) {
         return null;
     }
 
-    const values = [
+    if (
+        stop.delay_minutes !== undefined &&
+        stop.delay_minutes !== null
+    ) {
+        return Number(stop.delay_minutes);
+    }
 
-        stop.delay_minutes,
-
-        stop.realtime_delay_minutes,
-
-        stop.delay,
-
-        stop.arrival_delay_minutes,
-
-        stop.departure_delay_minutes
-
-    ];
-
-    for (const value of values) {
-
-        if (
-            value !== undefined &&
-            value !== null &&
-            value !== "" &&
-            !Number.isNaN(Number(value))
-        ) {
-
-            return Math.round(Number(value));
-        }
+    if (
+        stop.realtime_delay_minutes !== undefined &&
+        stop.realtime_delay_minutes !== null
+    ) {
+        return Number(
+            stop.realtime_delay_minutes
+        );
     }
 
     if (
         stop.delay_seconds !== undefined &&
-        stop.delay_seconds !== null &&
-        !Number.isNaN(Number(stop.delay_seconds))
+        stop.delay_seconds !== null
     ) {
-
         return Math.round(
             Number(stop.delay_seconds) / 60
         );
+    }
+
+    if (
+        stop.delay !== undefined &&
+        stop.delay !== null
+    ) {
+        return Number(stop.delay);
     }
 
     return null;
@@ -237,21 +191,13 @@ function getStationName(stop) {
     }
 
     return (
-
         stop.station ||
-
         stop.stop_name ||
-
         stop.station_name ||
-
         stop.name ||
-
         stop.stop ||
-
         stop.stopId ||
-
         stop.stop_id ||
-
         "Parada"
     );
 }
@@ -267,39 +213,26 @@ function getTheoreticalTime(stop) {
         return null;
     }
 
-    /*
-     * Les dades reals del JSON utilitzen:
-     *
-     * scheduled_arrival
-     * scheduled_departure
-     *
-     * i són minuts des de mitjanit.
-     */
+    // Camps reals del JSON de Renfe
+    if (
+        stop.scheduled_arrival !== undefined &&
+        stop.scheduled_arrival !== null
+    ) {
+        return Number(
+            stop.scheduled_arrival
+        );
+    }
 
-    return (
+    if (
+        stop.scheduled_departure !== undefined &&
+        stop.scheduled_departure !== null
+    ) {
+        return Number(
+            stop.scheduled_departure
+        );
+    }
 
-        stop.scheduled_arrival ??
-
-        stop.scheduled_departure ??
-
-        stop.time ??
-
-        stop.arrival_time ??
-
-        stop.departure_time ??
-
-        stop.arrival ??
-
-        stop.departure ??
-
-        stop.theoretical_time ??
-
-        stop.theoretical_arrival ??
-
-        stop.theoretical_departure ??
-
-        null
-    );
+    return null;
 }
 
 
@@ -313,32 +246,24 @@ function getRealtimeTime(stop) {
         return null;
     }
 
-    /*
-     * Les dades reals utilitzen actual_minutes.
-     */
+    // Camp real del JSON
+    if (
+        stop.actual_minutes !== undefined &&
+        stop.actual_minutes !== null
+    ) {
+        return Number(
+            stop.actual_minutes
+        );
+    }
 
-    return (
+    if (
+        stop.actual_time !== undefined &&
+        stop.actual_time !== null
+    ) {
+        return stop.actual_time;
+    }
 
-        stop.actual_minutes ??
-
-        stop.actual_time ??
-
-        stop.actual ??
-
-        stop.realtime_time ??
-
-        stop.real_time ??
-
-        stop.arrival_actual ??
-
-        stop.departure_actual ??
-
-        stop.predicted_time ??
-
-        stop.estimated_time ??
-
-        null
-    );
+    return null;
 }
 
 
@@ -348,61 +273,22 @@ function getRealtimeTime(stop) {
 
 function getDepartureTime(train) {
 
-    if (!train) {
+    if (
+        !train ||
+        !Array.isArray(train.stops) ||
+        train.stops.length === 0
+    ) {
         return null;
     }
 
-    const values = [
+    const firstStop =
+        train.stops[0];
 
-        train.departure_time,
-
-        train.departure,
-
-        train.start_time,
-
-        train.origin_departure
-
-    ];
-
-    for (const value of values) {
-
-        if (
-            value !== undefined &&
-            value !== null
-        ) {
-            return value;
-        }
-    }
-
-    if (
-        Array.isArray(train.stops) &&
-        train.stops.length > 0
-    ) {
-
-        const firstStop =
-            train.stops[0];
-
-        return (
-
-            firstStop.scheduled_departure ??
-
-            firstStop.scheduled_arrival ??
-
-            firstStop.departure_time ??
-
-            firstStop.departure ??
-
-            firstStop.arrival_time ??
-
-            firstStop.arrival ??
-
-            firstStop.time ??
-
-            null
-        );
-    }
-
-    return null;
+    return (
+        firstStop.scheduled_departure ??
+        firstStop.scheduled_arrival ??
+        null
+    );
 }
 
 
@@ -412,63 +298,24 @@ function getDepartureTime(train) {
 
 function getArrivalTime(train) {
 
-    if (!train) {
+    if (
+        !train ||
+        !Array.isArray(train.stops) ||
+        train.stops.length === 0
+    ) {
         return null;
     }
 
-    const values = [
+    const lastStop =
+        train.stops[
+            train.stops.length - 1
+        ];
 
-        train.arrival_time,
-
-        train.arrival,
-
-        train.end_time,
-
-        train.destination_arrival
-
-    ];
-
-    for (const value of values) {
-
-        if (
-            value !== undefined &&
-            value !== null
-        ) {
-            return value;
-        }
-    }
-
-    if (
-        Array.isArray(train.stops) &&
-        train.stops.length > 0
-    ) {
-
-        const lastStop =
-            train.stops[
-                train.stops.length - 1
-            ];
-
-        return (
-
-            lastStop.scheduled_arrival ??
-
-            lastStop.scheduled_departure ??
-
-            lastStop.arrival_time ??
-
-            lastStop.arrival ??
-
-            lastStop.departure_time ??
-
-            lastStop.departure ??
-
-            lastStop.time ??
-
-            null
-        );
-    }
-
-    return null;
+    return (
+        lastStop.scheduled_arrival ??
+        lastStop.scheduled_departure ??
+        null
+    );
 }
 
 
@@ -513,7 +360,51 @@ function getActualArrivalMinutes(train) {
 
 
 // ============================================================
-// TRAIN ARRIVED?
+// FINAL DELAY
+// ============================================================
+
+function getFinalDelay(train) {
+
+    if (!train) {
+        return 0;
+    }
+
+    if (
+        train.final_delay_minutes !== undefined &&
+        train.final_delay_minutes !== null
+    ) {
+        return Math.round(
+            Number(
+                train.final_delay_minutes
+            )
+        );
+    }
+
+    if (
+        train.realtime_trip_delay_minutes !== undefined &&
+        train.realtime_trip_delay_minutes !== null
+    ) {
+        return Math.round(
+            Number(
+                train.realtime_trip_delay_minutes
+            )
+        );
+    }
+
+    const lastStop =
+        getLastStop(train);
+
+    const delay =
+        getDelayMinutes(lastStop);
+
+    return delay !== null
+        ? Math.round(delay)
+        : 0;
+}
+
+
+// ============================================================
+// ARRIVED?
 // ============================================================
 
 function hasTrainArrived(
@@ -538,12 +429,12 @@ function hasTrainArrived(
     const today =
         getTodayString();
 
-    // Dies anteriors
+    // Dia anterior
     if (selectedDate < today) {
         return true;
     }
 
-    // Dies futurs
+    // Dia futur
     if (selectedDate > today) {
         return false;
     }
@@ -560,8 +451,8 @@ function hasTrainArrived(
         );
     }
 
-    // Sense hora real:
-    // hora teòrica + retard conegut
+    // Si no tenim hora real,
+    // utilitzem hora teòrica + retard
     const arrival =
         getArrivalTime(train);
 
@@ -593,22 +484,6 @@ function hasTrainArrived(
 
 
 // ============================================================
-// CURRENT TIME
-// ============================================================
-
-function getNowMinutes() {
-
-    const now =
-        new Date();
-
-    return (
-        now.getHours() * 60 +
-        now.getMinutes()
-    );
-}
-
-
-// ============================================================
 // DEPARTED?
 // ============================================================
 
@@ -627,52 +502,6 @@ function hasTrainDeparted(train) {
     return (
         departureMinutes <=
         getNowMinutes()
-    );
-}
-
-
-// ============================================================
-// FINAL DELAY
-// ============================================================
-
-function getFinalDelay(train) {
-
-    if (!train) {
-        return 0;
-    }
-
-    if (
-        train.final_delay_minutes !==
-            undefined &&
-        train.final_delay_minutes !== null
-    ) {
-
-        return Math.round(
-            Number(
-                train.final_delay_minutes
-            )
-        );
-    }
-
-    if (
-        train.realtime_trip_delay_minutes !==
-            undefined &&
-        train.realtime_trip_delay_minutes !== null
-    ) {
-
-        return Math.round(
-            Number(
-                train.realtime_trip_delay_minutes
-            )
-        );
-    }
-
-    const lastStop =
-        getLastStop(train);
-
-    return (
-        getDelayMinutes(lastStop) ||
-        0
     );
 }
 
@@ -704,9 +533,7 @@ function getTrainStatus(
         return "finished";
     }
 
-    if (
-        !hasTrainDeparted(train)
-    ) {
+    if (!hasTrainDeparted(train)) {
         return "pending";
     }
 
@@ -733,45 +560,26 @@ function getStatusText(
     switch (status) {
 
         case "pending":
-
             return "Encara no ha sortit";
-
 
         case "running":
 
             if (delay > 0) {
-
-                return (
-                    `En circulació · +${delay} min`
-                );
+                return `En circulació · +${delay} min`;
             }
 
-            return (
-                "En circulació · en hora"
-            );
-
+            return "En circulació · en hora";
 
         case "warning":
-
-            return (
-                `En circulació · +${delay} min`
-            );
-
+            return `En circulació · +${delay} min`;
 
         case "late":
-
-            return (
-                `Arribat · +${delay} min`
-            );
-
+            return `Arribat · +${delay} min`;
 
         case "finished":
-
             return "Arribat";
 
-
         default:
-
             return "";
     }
 }
@@ -784,15 +592,10 @@ function getStatusText(
 function getTrainId(train) {
 
     return (
-
         train.trip_id ||
-
         train.train_id ||
-
         train.id ||
-
         train.tripId ||
-
         "Tren"
     );
 }
@@ -811,11 +614,9 @@ function renderStops(train) {
 
         return `
             <div class="stops">
-
                 <p class="no-stops">
                     No hi ha informació de parades.
                 </p>
-
             </div>
         `;
     }
@@ -829,11 +630,8 @@ function renderStops(train) {
             </div>
 
             <div class="stops-header">
-
                 <span>Estació</span>
-
                 <span>Hora de pas</span>
-
             </div>
     `;
 
@@ -843,36 +641,29 @@ function renderStops(train) {
         const station =
             getStationName(stop);
 
-
         const theoretical =
             getTheoreticalTime(stop);
-
 
         const realtime =
             getRealtimeTime(stop);
 
-
         const delay =
             getDelayMinutes(stop);
-
-
-        let realtimeHtml = "";
 
 
         // ----------------------------------------------------
         // HORA REAL / ESTIMADA
         // ----------------------------------------------------
 
+        let realtimeHtml = "";
+
+
         if (realtime !== null) {
 
             realtimeHtml = `
-
                 <span class="actual-time">
-
                     ${formatTime(realtime)}
-
                 </span>
-
             `;
 
         } else if (
@@ -880,38 +671,21 @@ function renderStops(train) {
             theoretical !== null
         ) {
 
-            const theoreticalMinutes =
+            const estimated =
                 parseTimeToMinutes(
                     theoretical
-                );
+                ) + delay;
 
 
-            if (
-                theoreticalMinutes !== null
-            ) {
-
-                let estimatedMinutes =
-                    theoreticalMinutes +
-                    delay;
+            const normalized =
+                ((estimated % 1440) + 1440) % 1440;
 
 
-                // Per evitar problemes amb més de 24 h
-                estimatedMinutes =
-                    estimatedMinutes % 1440;
-
-
-                realtimeHtml = `
-
-                    <span class="estimated-time">
-
-                        ${formatTime(
-                            estimatedMinutes
-                        )}
-
-                    </span>
-
-                `;
-            }
+            realtimeHtml = `
+                <span class="estimated-time">
+                    ${formatTime(normalized)}
+                </span>
+            `;
         }
 
 
@@ -932,56 +706,44 @@ function renderStops(train) {
                     ? "+"
                     : "";
 
-
             delayHtml = `
-
                 <span class="stop-delay">
-
                     ${prefix}${delay} min
-
                 </span>
-
             `;
         }
 
+
+        // ----------------------------------------------------
+        // ROW
+        // ----------------------------------------------------
 
         html += `
 
             <div class="stop-row">
 
                 <div class="stop-name">
-
                     ${station}
-
                 </div>
-
 
                 <div class="stop-times">
 
                     <span class="theoretical-time">
-
-                        ${formatTime(
-                            theoretical
-                        )}
-
+                        ${formatTime(theoretical)}
                     </span>
 
-
                     ${realtimeHtml}
-
 
                     ${delayHtml}
 
                 </div>
 
             </div>
-
         `;
     }
 
 
     html += `
-
         </div>
     `;
 
@@ -1005,29 +767,23 @@ function renderTrain(
             selectedDate
         );
 
-
     const delay =
         getFinalDelay(train);
-
 
     const trainId =
         getTrainId(train);
 
-
     const departure =
         getDepartureTime(train);
 
-
     const arrival =
         getArrivalTime(train);
-
 
     const statusText =
         getStatusText(
             status,
             train
         );
-
 
     const expressRefund =
         delay > 15;
@@ -1045,11 +801,8 @@ function renderTrain(
                 <div class="train-left">
 
                     <div class="train-id">
-
                         🚆 ${trainId}
-
                     </div>
-
 
                     <div class="train-route">
 
@@ -1080,18 +833,13 @@ function renderTrain(
 
                     </div>
 
-
                     ${
                         expressRefund
                             ? `
-
                                 <div class="refund">
-
                                     Sí es pot sol·licitar
                                     devolució express
-
                                 </div>
-
                             `
                             : ""
                     }
@@ -1104,7 +852,6 @@ function renderTrain(
             ${renderStops(train)}
 
         </article>
-
     `;
 }
 
@@ -1132,22 +879,19 @@ function renderSummary(
             ${
                 showHistory
                     ? `
-
                         · ${arrived}
                         trens arribats
-
                     `
                     : ""
             }
 
         </div>
-
     `;
 }
 
 
 // ============================================================
-// MAIN RENDER
+// RENDER
 // ============================================================
 
 function render(data) {
@@ -1156,10 +900,8 @@ function render(data) {
         return;
     }
 
-
     const selectedDate =
         dateInput.value;
-
 
     let trains =
         data.trains ||
@@ -1204,15 +946,12 @@ function render(data) {
         trains.map(train => {
 
             return {
-
                 train,
-
                 status:
                     getTrainStatus(
                         train,
                         selectedDate
                     )
-
             };
 
         });
@@ -1226,14 +965,6 @@ function render(data) {
     // --------------------------------------------------------
 
     if (!showHistory) {
-
-        /*
-         * IMPORTANT:
-         *
-         * Aquí filtrem directament per arribada.
-         * Això evita que un tren arribat amb +15 min
-         * continuï apareixent a la pantalla principal.
-         */
 
         visible =
             processed
@@ -1274,7 +1005,7 @@ function render(data) {
 
 
     // --------------------------------------------------------
-    // ORDENAR
+    // ORDRE
     // --------------------------------------------------------
 
     visible.sort((a, b) => {
@@ -1292,7 +1023,6 @@ function render(data) {
 
 
         return timeA - timeB;
-
     });
 
 
@@ -1328,14 +1058,11 @@ function render(data) {
 
                 ${
                     showHistory
-
                         ? "No hi ha trens ja arribats."
-
                         : "No hi ha trens en circulació o pendents."
                 }
 
             </div>
-
         `;
 
         return;
@@ -1343,7 +1070,7 @@ function render(data) {
 
 
     // --------------------------------------------------------
-    // RENDER
+    // MOSTRAR TRENS
     // --------------------------------------------------------
 
     trainsContainer.innerHTML =
@@ -1358,7 +1085,7 @@ function render(data) {
 
 
     // --------------------------------------------------------
-    // EXPANDIR PARADES
+    // DESPLEGAR PARADES
     // --------------------------------------------------------
 
     document
@@ -1398,11 +1125,8 @@ async function loadData() {
     trainsContainer.innerHTML = `
 
         <p class="loading">
-
             Carregant dades...
-
         </p>
-
     `;
 
 
@@ -1449,7 +1173,6 @@ async function loadData() {
                 les dades d'aquest dia.
 
             </div>
-
         `;
     }
 }
@@ -1488,11 +1211,8 @@ toggleHistoryButton.addEventListener(
 
 
         if (currentData) {
-
             render(currentData);
-
         }
-
     }
 );
 
