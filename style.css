@@ -22,6 +22,10 @@ body {
 }
 
 
+/* ============================================================
+   HEADER
+   ============================================================ */
+
 header {
 
     background: #1f2937;
@@ -31,7 +35,6 @@ header {
     padding: 24px 20px;
 
     text-align: center;
-
 }
 
 
@@ -40,7 +43,6 @@ header h1 {
     margin: 0 0 8px;
 
     font-size: 32px;
-
 }
 
 
@@ -51,7 +53,6 @@ header p {
     color: #d1d5db;
 
     font-size: 15px;
-
 }
 
 
@@ -68,7 +69,6 @@ main {
     margin: 0 auto;
 
     padding: 24px 16px 50px;
-
 }
 
 
@@ -86,7 +86,6 @@ main {
     gap: 16px;
 
     margin-bottom: 16px;
-
 }
 
 
@@ -97,7 +96,6 @@ main {
     flex-direction: column;
 
     gap: 7px;
-
 }
 
 
@@ -108,7 +106,6 @@ main {
     font-weight: bold;
 
     color: #555;
-
 }
 
 
@@ -128,7 +125,6 @@ main {
     background: white;
 
     font-size: 16px;
-
 }
 
 
@@ -139,7 +135,6 @@ main {
 .history-control {
 
     margin-bottom: 20px;
-
 }
 
 
@@ -168,28 +163,24 @@ main {
     transition:
         background 0.2s,
         transform 0.1s;
-
 }
 
 
 .history-button:hover {
 
     background: #1f2937;
-
 }
 
 
 .history-button:active {
 
     transform: scale(0.99);
-
 }
 
 
 .history-button.active {
 
     background: #111827;
-
 }
 
 
@@ -210,14 +201,12 @@ main {
     color: #666;
 
     font-size: 14px;
-
 }
 
 
 .summary strong {
 
     color: #222;
-
 }
 
 
@@ -232,7 +221,6 @@ main {
     flex-direction: column;
 
     gap: 12px;
-
 }
 
 
@@ -254,7 +242,6 @@ main {
     transition:
         box-shadow 0.2s,
         transform 0.1s;
-
 }
 
 
@@ -262,14 +249,12 @@ main {
 
     box-shadow:
         0 4px 14px rgba(0, 0, 0, 0.11);
-
 }
 
 
 .train:active {
 
     transform: scale(0.995);
-
 }
 
 
@@ -279,36 +264,31 @@ main {
 
 .train.pending {
 
-    border-left-color: #999;
-
+    border-left-color: #999999;
 }
 
 
 .train.finished {
 
-    border-left-color: #999;
-
+    border-left-color: #999999;
 }
 
 
 .train.running {
 
     border-left-color: #2e9b57;
-
 }
 
 
 .train.warning {
 
     border-left-color: #f39c12;
-
 }
 
 
 .train.late {
 
     border-left-color: #d32f2f;
-
 }
 
 
@@ -326,15 +306,13 @@ main {
 
     gap: 20px;
 
-    padding: 18px 18px;
-
+    padding: 18px;
 }
 
 
 .train-left {
 
     min-width: 0;
-
 }
 
 
@@ -345,7 +323,6 @@ main {
     font-weight: bold;
 
     margin-bottom: 7px;
-
 }
 
 
@@ -360,7 +337,6 @@ main {
     font-size: 21px;
 
     font-weight: bold;
-
 }
 
 
@@ -369,7 +345,6 @@ main {
     color: #999;
 
     font-weight: normal;
-
 }
 
 
@@ -382,7 +357,6 @@ main {
     text-align: right;
 
     flex-shrink: 0;
-
 }
 
 
@@ -399,7 +373,6 @@ main {
     font-size: 14px;
 
     font-weight: bold;
-
 }
 
 
@@ -414,42 +387,36 @@ main {
     background: #999;
 
     flex-shrink: 0;
-
 }
 
-
-/* Green */
 
 .train.running .status-dot {
 
     background: #2e9b57;
 
     animation: pulse 1.5s infinite;
-
 }
 
-
-/* Orange */
 
 .train.warning .status-dot {
 
     background: #f39c12;
 
     animation: pulse-warning 1.2s infinite;
-
 }
 
-
-/* Red */
 
 .train.late .status-dot {
 
     background: #d32f2f;
 
     animation: pulse-red 1s infinite;
-
 }
 
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
 
 @keyframes pulse {
 
@@ -464,7 +431,6 @@ main {
     100% {
         opacity: 1;
     }
-
 }
 
 
@@ -481,7 +447,6 @@ main {
     100% {
         opacity: 1;
     }
-
 }
 
 
@@ -498,7 +463,6 @@ main {
     100% {
         opacity: 1;
     }
-
 }
 
 
@@ -515,7 +479,6 @@ main {
     font-size: 13px;
 
     font-weight: bold;
-
 }
 
 
@@ -530,14 +493,12 @@ main {
     padding: 0 18px 18px;
 
     border-top: 1px solid #eee;
-
 }
 
 
 .train.expanded .stops {
 
     display: block;
-
 }
 
 
@@ -552,7 +513,6 @@ main {
     font-weight: bold;
 
     color: #333;
-
 }
 
 
@@ -579,14 +539,12 @@ main {
     font-size: 13px;
 
     font-weight: bold;
-
 }
 
 
 .stops-header span:last-child {
 
     text-align: right;
-
 }
 
 
@@ -611,14 +569,12 @@ main {
     padding: 8px 0;
 
     border-bottom: 1px solid #f0f0f0;
-
 }
 
 
 .stop-row:last-child {
 
     border-bottom: 0;
-
 }
 
 
@@ -627,7 +583,6 @@ main {
     font-size: 15px;
 
     color: #333;
-
 }
 
 
@@ -642,18 +597,20 @@ main {
     gap: 10px;
 
     white-space: nowrap;
-
 }
 
+
+/* Hora teòrica */
 
 .theoretical-time {
 
     font-size: 17px;
 
     color: #777;
-
 }
 
+
+/* Hora real */
 
 .actual-time {
 
@@ -662,9 +619,10 @@ main {
     font-weight: bold;
 
     color: #222;
-
 }
 
+
+/* Hora estimada */
 
 .estimated-time {
 
@@ -673,9 +631,10 @@ main {
     font-weight: bold;
 
     color: #555;
-
 }
 
+
+/* Retard */
 
 .stop-delay {
 
@@ -684,9 +643,10 @@ main {
     font-weight: bold;
 
     color: #d32f2f;
-
 }
 
+
+/* Sense parades */
 
 .no-stops {
 
@@ -695,7 +655,6 @@ main {
     color: #777;
 
     font-size: 14px;
-
 }
 
 
@@ -714,7 +673,6 @@ main {
     background: white;
 
     border-radius: 10px;
-
 }
 
 
@@ -733,7 +691,6 @@ main {
     background: white;
 
     border-radius: 10px;
-
 }
 
 
@@ -754,7 +711,6 @@ main {
     text-align: center;
 
     font-weight: bold;
-
 }
 
 
@@ -767,14 +723,12 @@ main {
     header {
 
         padding: 20px 15px;
-
     }
 
 
     header h1 {
 
         font-size: 26px;
-
     }
 
 
@@ -784,7 +738,6 @@ main {
             16px
             10px
             40px;
-
     }
 
 
@@ -793,7 +746,6 @@ main {
         grid-template-columns: 1fr;
 
         gap: 10px;
-
     }
 
 
@@ -802,42 +754,36 @@ main {
         align-items: flex-start;
 
         padding: 15px;
-
     }
 
 
     .train-id {
 
         font-size: 17px;
-
     }
 
 
     .train-route {
 
         font-size: 19px;
-
     }
 
 
     .train-right {
 
         max-width: 45%;
-
     }
 
 
     .status {
 
         font-size: 12px;
-
     }
 
 
     .refund {
 
         font-size: 11px;
-
     }
 
 
@@ -847,7 +793,6 @@ main {
             0
             12px
             12px;
-
     }
 
 
@@ -858,21 +803,18 @@ main {
             auto;
 
         gap: 8px;
-
     }
 
 
     .stop-name {
 
         font-size: 14px;
-
     }
 
 
     .stop-times {
 
         gap: 6px;
-
     }
 
 
@@ -881,16 +823,13 @@ main {
     .estimated-time {
 
         font-size: 15px;
-
     }
 
 
     .stop-delay {
 
         font-size: 12px;
-
     }
-
 }
 
 
@@ -901,7 +840,6 @@ main {
         flex-direction: column;
 
         gap: 10px;
-
     }
 
 
@@ -912,21 +850,18 @@ main {
         max-width: none;
 
         text-align: left;
-
     }
 
 
     .status {
 
         justify-content: flex-start;
-
     }
 
 
     .refund {
 
         text-align: left;
-
     }
 
 
@@ -935,14 +870,11 @@ main {
         grid-template-columns: 1fr;
 
         gap: 3px;
-
     }
 
 
     .stop-times {
 
         justify-content: flex-start;
-
     }
-
 }
