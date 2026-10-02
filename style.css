@@ -9,6 +9,11 @@ body {
     color: #1f2933;
 }
 
+
+/* =====================================================
+   CAPÇALERA
+   ===================================================== */
+
 header {
     background: #ffffff;
     padding: 25px 20px;
@@ -26,11 +31,21 @@ header p {
     color: #667085;
 }
 
+
+/* =====================================================
+   CONTINGUT PRINCIPAL
+   ===================================================== */
+
 main {
     max-width: 1000px;
     margin: 25px auto;
     padding: 0 15px;
 }
+
+
+/* =====================================================
+   CONTROLS
+   ===================================================== */
 
 .controls {
     display: flex;
@@ -58,6 +73,11 @@ input[type="date"] {
     font-size: 16px;
 }
 
+
+/* =====================================================
+   RESUM
+   ===================================================== */
+
 #summary {
     margin-bottom: 15px;
     color: #555;
@@ -65,7 +85,7 @@ input[type="date"] {
 
 
 /* =====================================================
-   TARGETA DEL TREN
+   TARGETES DELS TRENS
    ===================================================== */
 
 .train {
@@ -74,33 +94,31 @@ input[type="date"] {
     margin-bottom: 12px;
     overflow: hidden;
 
-    border-left: 6px solid #2e9b57;
+    border-left: 6px solid #999999;
 
     box-shadow:
         0 2px 6px rgba(0, 0, 0, 0.08);
+
+    transition:
+        border-left-color 0.2s ease,
+        box-shadow 0.2s ease;
 }
 
 
-/*
- * VERD
- *
- * Tren pendent de sortir
- * o tren finalitzat sense retard >15 min.
- */
-
-.train.pending {
-    border-left-color: #2e9b57;
-}
+/* =====================================================
+   COLORS DELS TRENS
+   ===================================================== */
 
 
 /*
  * GRIS
  *
- * Tren que ja ha sortit
- * però encara està en circulació.
+ * Encara no ha sortit
+ * o ja ha arribat amb ≤15 minuts.
  */
 
-.train.running {
+.train.pending,
+.train.finished {
     border-left-color: #999999;
 }
 
@@ -108,21 +126,34 @@ input[type="date"] {
 /*
  * VERD
  *
- * Tren que ja ha arribat
- * amb un retard de 15 minuts
- * o menys.
+ * Està circulant:
+ * 0 - 3 minuts de retard.
  */
 
-.train.finished {
+.train.running {
     border-left-color: #2e9b57;
+}
+
+
+/*
+ * TARONJA
+ *
+ * Està circulant:
+ * 4 - 15 minuts de retard.
+ */
+
+.train.warning {
+    border-left-color: #f39c12;
 }
 
 
 /*
  * VERMELL
  *
- * Tren que ja ha arribat
- * amb més de 15 minuts de retard.
+ * Retard superior a 15 minuts.
+ *
+ * Pot estar circulant
+ * o ja haver arribat.
  */
 
 .train.late {
@@ -131,12 +162,17 @@ input[type="date"] {
 
 
 /* =====================================================
-   CAPÇALERA
+   CAPÇALERA DEL TREN
    ===================================================== */
 
 .train-header {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+
+    grid-template-columns:
+        1fr
+        1fr
+        1fr;
+
     align-items: center;
 
     padding: 16px;
@@ -150,7 +186,9 @@ input[type="date"] {
 }
 
 
-/* Número */
+/* =====================================================
+   IDENTIFICACIÓ DEL TREN
+   ===================================================== */
 
 .train-number {
     display: flex;
@@ -168,10 +206,13 @@ input[type="date"] {
 }
 
 
-/* Horaris */
+/* =====================================================
+   HORARIS
+   ===================================================== */
 
 .train-route {
     display: flex;
+
     justify-content: center;
     align-items: center;
 
@@ -186,7 +227,9 @@ input[type="date"] {
 }
 
 
-/* Estat */
+/* =====================================================
+   ESTAT
+   ===================================================== */
 
 .train-status {
     text-align: right;
@@ -208,12 +251,33 @@ input[type="date"] {
 
     border-radius: 50%;
 
-    background: #2e9b57;
-
     margin-right: 5px;
+
+    background: #2e9b57;
 
     animation: pulse 1.5s infinite;
 }
+
+
+/*
+ * El punt de trens amb retard
+ * 4-15 minuts serà taronja.
+ */
+
+.train.warning .live-dot {
+    background: #f39c12;
+}
+
+
+/*
+ * El punt de trens amb retard
+ * superior a 15 minuts serà vermell.
+ */
+
+.train.late .live-dot {
+    background: #d32f2f;
+}
+
 
 @keyframes pulse {
 
@@ -251,6 +315,10 @@ input[type="date"] {
 }
 
 
+/* =====================================================
+   CADA PARADA
+   ===================================================== */
+
 .stop {
     display: grid;
 
@@ -273,10 +341,18 @@ input[type="date"] {
 }
 
 
+/* =====================================================
+   NOM ESTACIÓ
+   ===================================================== */
+
 .stop-station {
     font-size: 15px;
 }
 
+
+/* =====================================================
+   HORES DE LA PARADA
+   ===================================================== */
 
 .stop-times {
     display: flex;
@@ -287,6 +363,10 @@ input[type="date"] {
 }
 
 
+/*
+ * Hora teòrica
+ */
+
 .scheduled {
     color: #777;
 
@@ -294,12 +374,21 @@ input[type="date"] {
 }
 
 
+/*
+ * Hora real / estimada
+ */
+
 .actual {
     font-weight: bold;
 
     font-size: 15px;
 }
 
+
+/*
+ * Quan encara no tenim
+ * informació de temps real.
+ */
 
 .pending-time {
     color: #aaa;
@@ -320,7 +409,7 @@ input[type="date"] {
 
 
 /* =====================================================
-   DEVOLUCIÓ
+   DEVOLUCIÓ EXPRESS
    ===================================================== */
 
 .refund-message {
@@ -341,7 +430,7 @@ input[type="date"] {
 
 
 /* =====================================================
-   CARREGANT / BUIT
+   CARREGANT / SENSE DADES
    ===================================================== */
 
 .loading,
@@ -359,7 +448,7 @@ input[type="date"] {
 
 
 /* =====================================================
-   MÒBIL
+   VERSIÓ MÒBIL
    ===================================================== */
 
 @media (max-width: 700px) {
@@ -368,25 +457,30 @@ input[type="date"] {
         flex-direction: column;
     }
 
+
     .train-header {
         grid-template-columns: 1fr;
 
         gap: 10px;
     }
 
+
     .train-route {
         justify-content: flex-start;
     }
 
+
     .train-status {
         text-align: left;
     }
+
 
     .stop {
         grid-template-columns: 1fr;
 
         gap: 5px;
     }
+
 
     .stop-times {
         justify-content: flex-start;
