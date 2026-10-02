@@ -892,3 +892,13 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+stops_json.append({
+    "station": stop["station"],
+    "stop_id": stop["stop_id"],
+    "sequence": stop["sequence"],
+    "scheduled_arrival": stop["scheduled_arrival"],
+    "scheduled_departure": stop["scheduled_departure"],
+    "actual_minutes": None,
+    "delay_minutes": None
+})
