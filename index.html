@@ -3,53 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>R15 Tracker</title>
-    <link rel="stylesheet" href="style.css">
+
+    <link rel="stylesheet" href="style.css?v=3">
 </head>
 
 <body>
 
-    <header>
-        <h1>🚆 R15 Tracker</h1>
-        <p>Històric de circulacions Barcelona ↔ Reus</p>
-    </header>
+<header>
+    <h1>🚆 R15 Tracker</h1>
+    <p>Històric de circulacions Barcelona ↔ Reus</p>
+</header>
 
-    <main>
+<main>
 
-        <section class="controls">
+    <section class="controls">
 
-            <div class="control">
-                <label for="direction">Sentit</label>
+        <div class="control">
+            <label for="direction">Sentit</label>
 
-                <select id="direction">
-                    <option value="BAR_REUS">Barcelona → Reus</option>
-                    <option value="REUS_BAR">Reus → Barcelona</option>
-                </select>
-            </div>
+            <select id="direction">
+                <option value="BAR_REUS">Barcelona → Reus</option>
+                <option value="REUS_BAR">Reus → Barcelona</option>
+            </select>
+        </div>
 
-            <div class="control">
-                <label for="date">Dia</label>
-                <input type="date" id="date">
-            </div>
+        <div class="control">
+            <label for="date">Dia</label>
 
-        </section>
+            <input type="date" id="date">
+        </div>
 
-        <!-- Botó per mostrar/ocultar els trens ja arribats -->
-        <section class="history-control">
-            <button id="toggleHistory" class="history-button">
-                Consultar trens ja arribats
-            </button>
-        </section>
+    </section>
 
-        <section id="summary"></section>
+    <section class="history-control">
+        <button id="toggleHistory" class="history-button">
+            Consultar trens ja arribats
+        </button>
+    </section>
 
-        <section id="trains">
-            <p class="loading">Carregant dades...</p>
-        </section>
+    <section id="summary"></section>
 
-    </main>
+    <section id="trains">
+        <p class="loading">Carregant dades...</p>
+    </section>
 
-    <script src="app.js"></script>
+</main>
+
+<script src="app.js?v=3"></script>
 
 </body>
 </html>
